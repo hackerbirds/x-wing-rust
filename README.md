@@ -20,7 +20,7 @@ The Kyber library we're using does not allow for deterministic decapsulation/enc
 - Properly check time-constant operations
 
 The X25519 and ML-KEM implementation are out of our control, and we are not checking for time-constant operations when it comes to generation etc. Such implementation that aren't constant-time are dangerous. 
-However we do attempt to have a constant-time equality check for `PublicKey`, `SharedKey` and `Ciphertext` using the `subtle` crate.
+However we do attempt to have a constant-time equality check for `PublicKey`, `SharedSecret` and `Ciphertext` using the `subtle` crate.
 
 - Receive any audits of any sort
 
@@ -30,7 +30,7 @@ However we do attempt to have a constant-time equality check for `PublicKey`, `S
 
 The recommended usage is with `XWingServer` and `XWingClient`. Note that "server" and "client" are just terms to differentiate between who's starting the key exchange. `XWingServer` can very well be used by clients. 
 
-`XWingServer` is the party that generates the KEM secret and handles decapsulation while `XWingClient` generates the shared key and handles the encapsulation using `XWingServer`'s public key.
+`XWingServer` is the party that generates the KEM secret and handles decapsulation while `XWingClient` generates the shared secret and handles the encapsulation using `XWingServer`'s public key.
 
 ```rust
 use x_wing::{XWingClient, XWingServer};
@@ -40,10 +40,10 @@ let csprng = OsRng;
 let (server, server_public_key) = XWingServer::new(csprng)?;
 let client = XWingClient::new(server_public_key, csprng);
 
-let (client_shared_key, client_cipher) = client.encapsulate()?;
-let server_shared_key = server.decapsulate(client_cipher)?;
+let (client_shared_secret, client_cipher) = client.encapsulate()?;
+let server_shared_secret = server.decapsulate(client_cipher)?;
 
-assert_eq!(client_shared_key, server_shared_key);
+assert_eq!(client_shared_secret, server_shared_secret);
 ```
 
 These structs make it difficult to Fuck Up™ because Rust will prevent you from leaking the secret, and will safely zeroize everything after encapsulating and decapsulating.
@@ -60,10 +60,10 @@ use rand::rngs::OsRng;
 let csprng = OsRng;
 let (secret_key_bob, pub_key_bob) = XWing::derive_key_pair(csprng)?;
 
-let (shared_key_alice, cipher_alice) = XWing::encapsulate(csprng, pub_key_bob)?;
-let shared_key_bob = XWing::decapsulate(cipher_alice, secret_key_bob)?;
+let (shared_secret_alice, cipher_alice) = XWing::encapsulate(csprng, pub_key_bob)?;
+let shared_secret_bob = XWing::decapsulate(cipher_alice, secret_key_bob)?;
 
-assert_eq!(shared_key_alice, shared_key_bob);
+assert_eq!(shared_secret_alice, shared_secret_bob);
 ```
 
 # Install
