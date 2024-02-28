@@ -1,4 +1,4 @@
-# A (not serious) implementation of X-Wing in Rust
+# A (not serious) implementation of the "X-Wing" Hybrid KEM in Rust
 
 X-Wing is a Hybrid KEM combining X25519 and ML-KEM-768 (formerly known as Kyber-768). It is designed such that if either X25519 or ML-KEM-768 is secure, then X-Wing is also secure.
 
@@ -44,7 +44,7 @@ let server_shared_key = server.decapsulate(client_cipher);
 assert_eq!(client_shared_key, server_shared_key);
 ```
 
-This usage makes it Hard To Fuck Up™ because Rust will prevent you from leaking the secret, and will safely zeroize everything after encapsulating and decapsulating.
+These structs make it difficult to Fuck Up™ because Rust will prevent you from leaking the secret, and will safely zeroize everything after encapsulating and decapsulating.
 
 If you don't want that, you may also use `XWing` directly, and feed it the necessary secrets yourself:
 
@@ -52,7 +52,7 @@ If you don't want that, you may also use `XWing` directly, and feed it the neces
 use x_wing::XWing;
 use rand::rngs::OsRng;
 
-// In this example, Alice is the "client" and Bob is the server. 
+// In this example, Alice is the "client" and Bob is the "server". 
 let csprng = OsRng;
 let (secret_key_bob, pub_key_bob) = XWing::derive_key_pair(csprng);
 
@@ -67,6 +67,7 @@ assert_eq!(shared_key_alice, shared_key_bob);
 Incluse the following like in the `[depedencies]` section of your `Cargo.toml`:
 
 ```x-wing = { git = "https://github.com/hackerbirds/x-wing-rust.git" }```
+
 # Design considerations
 
 - `SecretKey`, `Ciphertext`, and `SharedKey` are zeroized on Drop.
