@@ -359,9 +359,12 @@ impl SharedKey {
 /// (the "client") and decapsulates their ciphertext.
 ///
 /// Here is a basic usage:
-/// ```ignore
+/// ```
+/// use rand::rngs::OsRng;
+/// use x_wing::*;
+///
 /// let csprng = OsRng;
-/// let server = XWingServer::generate(csprng);
+/// let server = XWingServer::new(csprng);
 /// let client = XWingClient::new(server.public, csprng);
 ///
 /// let (client_shared_key, client_cipher) = client.encapsulate();
@@ -379,9 +382,10 @@ impl XWingServer {
     /// provide a cryptographically secure PRNG.
     ///
     /// Usage:
-    /// ```ignore
-    /// use rand::OsRng;
-    /// 
+    /// ```
+    /// use rand::rngs::OsRng;
+    /// use x_wing::*;
+    ///
     /// let csprng = OsRng;
     /// let server = XWingServer::new(csprng);
     /// ```
@@ -396,10 +400,17 @@ impl XWingServer {
     /// consumes [`XWingServer`], and you will no longer be able
     /// to use it afterward
     /// Usage:
-    /// ```ignore
-    /// let client_ciphertext: XWing::Ciphertext = ...
-    /// let server: XWing::XWingServer = ...
-    /// let shared_key = server.decapsulate(client_ciphertext);
+    /// ```
+    /// use rand::rngs::OsRng;
+    /// use x_wing::*;
+    /// // stuff...
+    /// let csprng = OsRng;
+    /// let server = XWingServer::new(csprng); 
+    /// let client = XWingClient::new(server.public, csprng);
+    /// // Client generates ciphertext
+    /// let (_, client_cipher) = client.encapsulate();
+    /// // Ciphertext gets sent to server and decapsulates it...
+    /// let shared_key = server.decapsulate(client_cipher);
     /// // After this point, `server` is dropped and no longer exists
     /// ```
     pub fn decapsulate(self, cipher: Ciphertext) -> SharedKey {
@@ -412,7 +423,10 @@ impl XWingServer {
 /// the other person (the "server").
 ///
 /// Here is a basic usage:
-/// ```ignore
+/// ```
+/// use rand::rngs::OsRng;
+/// use x_wing::*;
+///
 /// let csprng = OsRng;
 /// let server = XWingServer::new(csprng);
 /// let client = XWingClient::new(server.public, csprng);
@@ -432,10 +446,14 @@ impl<R: Rng + CryptoRng> XWingClient<R> {
     /// provide a cryptographically secure PRNG.
     ///
     /// Usage:
-    /// ```ignore
-    /// let server_public_key: XWing::PublicKey = ...
-    /// let csprng = rand::OsRng;
-    /// let client = XWingClient::new(server_public_key, csprng);
+    /// ```
+    /// use rand::rngs::OsRng;
+    /// use x_wing::*;
+    ///
+    /// let csprng = OsRng;
+    /// let server = XWingServer::new(csprng); 
+    /// // ...
+    /// let client = XWingClient::new(server.public, csprng);
     /// ```
     pub fn new(server_public: PublicKey, csprng: R) -> Self {
         Self {
@@ -503,6 +521,7 @@ mod tests {
     #[test]
     fn deserialise_and_serialize() {
         let csprng = OsRng;
+        #[allow(unused_variables)]
         let (secret_key, public_key) = XWing::derive_key_pair(csprng);
 
         #[cfg(feature = "serialize_secret_key")]
