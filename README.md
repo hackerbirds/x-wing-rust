@@ -68,7 +68,7 @@ assert_eq!(shared_key_alice, shared_key_bob);
 
 # Install
 
-Incluse the following like in the `[depedencies]` section of your `Cargo.toml`:
+Include the following line in the `[depedencies]` section of your `Cargo.toml`:
 
 ```x-wing = { git = "https://github.com/hackerbirds/x-wing-rust.git" }```
 
