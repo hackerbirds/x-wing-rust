@@ -2,8 +2,10 @@
 name = "x-wing"
 version = "0.1.0"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+license = "GPL-3.0-or-later"
+authors = ["hackerbirds"]
+description = "An implementation of X-Wing written for fun purposes. Do not use for serious purposes."
+repository = "https://github.com/hackerbirds/x-wing-rust"
 
 [dependencies]
 thiserror = "1.0"
