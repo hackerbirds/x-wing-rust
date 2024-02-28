@@ -54,7 +54,10 @@ const X_WING_LABEL: &[u8] = "\\.//^\\".as_bytes();
 )]
 #[derive(Zeroize, ZeroizeOnDrop)]
 pub struct SecretKey {
-    #[cfg_attr(feature = "serde", serde(with = "serde_arrays"))]
+    #[cfg_attr(
+        all(feature = "serde", feature = "serialize_secret_key"),
+        serde(with = "serde_arrays")
+    )]
     ml_kem_secret: MlKemSecretKey,
     x25519_secret: X25519SecretKey,
     x25519_public: X25519PublicKey,
