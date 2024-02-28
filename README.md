@@ -28,15 +28,17 @@ However we do attempt to have a constant-time equality check for `PublicKey`, `S
 
 # Usage
 
-The recommended usage is with `XWingServer` and `XWingClient`. `XWingServer` is the part that generates the KEM secret and decapsulation (typically a server, hence the name) while `XWingClient` handles the generation of the shared key and the encapsulation using the server's public key.
+The recommended usage is with `XWingServer` and `XWingClient`. Note that "server" and "client" are just terms to differentiate between who's starting the key exchange. `XWingServer` can very well be used by clients. 
+
+`XWingServer` is the party that generates the KEM secret and handles decapsulation while `XWingClient` generates the shared key and handles the encapsulation using `XWingServer`'s public key.
 
 ```rust
 use x_wing::{XWingClient, XWingServer};
 use rand::rngs::OsRng;
 
 let csprng = OsRng;
-let server = XWingServer::new(csprng);
-let client = XWingClient::new(server.public, csprng);
+let (server, server_public_key) = XWingServer::new(csprng);
+let client = XWingClient::new(server_public_key, csprng);
 
 let (client_shared_key, client_cipher) = client.encapsulate();
 let server_shared_key = server.decapsulate(client_cipher);
