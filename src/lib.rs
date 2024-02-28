@@ -57,12 +57,24 @@ pub struct SecretKey {
     x25519_public: X25519PublicKey,
 }
 
+impl AsMut<SecretKey> for SecretKey {
+    fn as_mut(&mut self) -> &mut SecretKey {
+        self
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Zeroize, ZeroizeOnDrop)]
 pub struct PublicKey {
     #[serde(with = "serde_arrays")]
     ml_kem_public: MlKemPublicKey,
     x25519_public: X25519PublicKey,
+}
+
+impl AsMut<PublicKey> for PublicKey {
+    fn as_mut(&mut self) -> &mut PublicKey {
+        self
+    }
 }
 
 impl ConstantTimeEq for PublicKey {
@@ -84,6 +96,12 @@ pub struct Ciphertext {
     #[serde(with = "serde_arrays")]
     ml_kem_cipher: [u8; ML_KEM_768_CIPHERTEXT_BYTES_LENGTH],
     x25519_cipher: [u8; X25519_CIPHERTEXT_BYTES_LENGTH],
+}
+
+impl AsMut<Ciphertext> for Ciphertext {
+    fn as_mut(&mut self) -> &mut Ciphertext {
+        self
+    }
 }
 
 impl ConstantTimeEq for Ciphertext {
@@ -167,11 +185,16 @@ pub trait Kem {
     fn derive_key_pair<R: Rng + CryptoRng>(csprng: R) -> (SecretKey, PublicKey);
     /// Generate and encapsulate a secret value (as the "client") into a [`Ciphertext`]
     /// which should be sent to the other person (the "server").
-    fn encapsulate<R: Rng + CryptoRng>(csprng: R, public_key: PublicKey)
-        -> (SharedKey, Ciphertext);
+    fn encapsulate<R: Rng + CryptoRng, Pk: AsMut<PublicKey>>(
+        csprng: R,
+        public_key: Pk,
+    ) -> (SharedKey, Ciphertext);
     /// Decapsulate a [`Ciphertext`] using the KEM's [`SecretKey`] (that the "server" has)
     /// to retrieve [`SharedKey`] sent by the "client"
-    fn decapsulate(cipher: Ciphertext, secret_key: SecretKey) -> SharedKey;
+    fn decapsulate<Ct: AsMut<Ciphertext>, Sk: AsMut<SecretKey>>(
+        cipher: Ct,
+        secret_key: Sk,
+    ) -> SharedKey;
 }
 
 impl Kem for XWing {
@@ -194,24 +217,24 @@ impl Kem for XWing {
         (secret, public)
     }
 
-    fn encapsulate<R: Rng + CryptoRng>(
+    fn encapsulate<R: Rng + CryptoRng, Pk: AsMut<PublicKey>>(
         mut csprng: R,
-        public_key: PublicKey,
+        mut public_key: Pk,
     ) -> (SharedKey, Ciphertext) {
         let secret_key_ephemeral = X25519SecretKey::random_from_rng(&mut csprng);
         let x25519_cipher = secret_key_ephemeral
             .diffie_hellman(&x25519_dalek::PublicKey::from(X25519_BASEPOINT_BYTES))
             .to_bytes();
+        let pk = public_key.as_mut();
         let (ml_kem_cipher, ml_kem_shared_key) =
-            pqc_kyber::encapsulate(&public_key.ml_kem_public, &mut csprng).unwrap();
-        let x25519_shared_key =
-            secret_key_ephemeral.diffie_hellman(&public_key.x25519_public.into());
+            pqc_kyber::encapsulate(&pk.ml_kem_public, &mut csprng).unwrap();
+        let x25519_shared_key = secret_key_ephemeral.diffie_hellman(&pk.x25519_public.into());
 
         let shared_key = Self::combiner(
             &ml_kem_shared_key,
             x25519_shared_key.as_bytes(),
             &x25519_cipher,
-            &public_key.x25519_public,
+            &pk.x25519_public,
         );
 
         let ciphertext = Ciphertext {
@@ -219,22 +242,36 @@ impl Kem for XWing {
             x25519_cipher,
         };
 
+        // Zeroize public key from memory when we're done
+        pk.zeroize();
+
         (shared_key, ciphertext)
     }
-    fn decapsulate(cipher: Ciphertext, secret_key: SecretKey) -> SharedKey {
-        let ml_kem_shared_key =
-            pqc_kyber::decapsulate(&cipher.ml_kem_cipher, &secret_key.ml_kem_secret).unwrap();
 
-        let x25519_shared_key = secret_key
+    fn decapsulate<Ct: AsMut<Ciphertext>, Sk: AsMut<SecretKey>>(
+        mut cipher: Ct,
+        mut secret_key: Sk,
+    ) -> SharedKey {
+        let ct = cipher.as_mut();
+        let sk = secret_key.as_mut();
+
+        let ml_kem_shared_key =
+            pqc_kyber::decapsulate(&ct.ml_kem_cipher, &sk.ml_kem_secret).unwrap();
+
+        let x25519_shared_key = sk
             .x25519_secret
-            .diffie_hellman(&x25519_dalek::PublicKey::from(cipher.x25519_cipher));
+            .diffie_hellman(&x25519_dalek::PublicKey::from(ct.x25519_cipher));
 
         let shared_key = Self::combiner(
             &ml_kem_shared_key,
             x25519_shared_key.as_bytes(),
-            &cipher.x25519_cipher,
-            &secret_key.x25519_public,
+            &ct.x25519_cipher,
+            &sk.x25519_public,
         );
+
+        // Zeroize cipher and secret key
+        ct.zeroize();
+        sk.zeroize();
 
         shared_key
     }
@@ -364,16 +401,16 @@ impl SharedKey {
 /// use x_wing::*;
 ///
 /// let csprng = OsRng;
-/// let server = XWingServer::new(csprng);
-/// let client = XWingClient::new(server.public, csprng);
+/// let (server, server_public_key) = XWingServer::new(csprng);
+/// let client = XWingClient::new(server_public_key, csprng);
 ///
 /// let (client_shared_key, client_cipher) = client.encapsulate();
 /// let server_shared_key = server.decapsulate(client_cipher);
 /// assert_eq!(client_shared_key, server_shared_key);
 /// ```
+#[derive(Zeroize, ZeroizeOnDrop)]
 pub struct XWingServer {
-    secret: SecretKey,
-    pub public: PublicKey,
+    secret: Box<SecretKey>,
 }
 
 impl XWingServer {
@@ -387,12 +424,17 @@ impl XWingServer {
     /// use x_wing::*;
     ///
     /// let csprng = OsRng;
-    /// let server = XWingServer::new(csprng);
+    /// let (server, server_public_key) = XWingServer::new(csprng);
     /// ```
-    pub fn new<R: Rng + CryptoRng>(csprng: R) -> Self {
+    pub fn new<R: Rng + CryptoRng>(csprng: R) -> (Self, PublicKey) {
         let (secret, public) = XWing::derive_key_pair(csprng);
 
-        Self { secret, public }
+        (
+            Self {
+                secret: Box::new(secret),
+            },
+            public,
+        )
     }
 
     /// Decapsulate a [`Ciphertext`] generated by a "client"
@@ -405,16 +447,16 @@ impl XWingServer {
     /// use x_wing::*;
     /// // stuff...
     /// let csprng = OsRng;
-    /// let server = XWingServer::new(csprng); 
-    /// let client = XWingClient::new(server.public, csprng);
+    /// let (server, server_public_key) = XWingServer::new(csprng);
+    /// let client = XWingClient::new(server_public_key, csprng);
     /// // Client generates ciphertext
     /// let (_, client_cipher) = client.encapsulate();
     /// // Ciphertext gets sent to server and decapsulates it...
     /// let shared_key = server.decapsulate(client_cipher);
     /// // After this point, `server` is dropped and no longer exists
     /// ```
-    pub fn decapsulate(self, cipher: Ciphertext) -> SharedKey {
-        XWing::decapsulate(cipher, self.secret)
+    pub fn decapsulate<Ct: AsMut<Ciphertext>>(mut self, cipher: Ct) -> SharedKey {
+        XWing::decapsulate(cipher, &mut self.secret)
     }
 }
 
@@ -428,15 +470,17 @@ impl XWingServer {
 /// use x_wing::*;
 ///
 /// let csprng = OsRng;
-/// let server = XWingServer::new(csprng);
-/// let client = XWingClient::new(server.public, csprng);
+/// let (server, server_public_key) = XWingServer::new(csprng);
+/// let client = XWingClient::new(server_public_key, csprng);
 ///
 /// let (client_shared_key, client_cipher) = client.encapsulate();
 /// let server_shared_key = server.decapsulate(client_cipher);
 /// assert_eq!(client_shared_key, server_shared_key);
 /// ```
+#[derive(Zeroize, ZeroizeOnDrop)]
 pub struct XWingClient<R: Rng + CryptoRng> {
-    pub server_public: PublicKey,
+    pub server_public: Box<PublicKey>,
+    #[zeroize(skip)]
     csprng: R,
 }
 
@@ -451,21 +495,24 @@ impl<R: Rng + CryptoRng> XWingClient<R> {
     /// use x_wing::*;
     ///
     /// let csprng = OsRng;
-    /// let server = XWingServer::new(csprng); 
+    /// let (server, server_public_key) = XWingServer::new(csprng);
     /// // ...
-    /// let client = XWingClient::new(server.public, csprng);
+    /// let client = XWingClient::new(server_public_key, csprng);
     /// ```
-    pub fn new(server_public: PublicKey, csprng: R) -> Self {
+    pub fn new<Pk: Into<PublicKey>>(server_public: Pk, csprng: R) -> Self {
         Self {
-            server_public,
+            server_public: Box::new(server_public.into()),
             csprng,
         }
     }
 
     /// Generate a shared key, and encapsulate it with the server's public key.
     /// The [`SharedKey`] should be kept secret and the [`Ciphertext`] should be sent to the server.
-    pub fn encapsulate(self) -> (SharedKey, Ciphertext) {
-        XWing::encapsulate(self.csprng, self.server_public)
+    pub fn encapsulate(mut self) -> (SharedKey, Ciphertext) {
+        // NOTE: We're doing a copy of server_public, which we won't
+        // be able to zeroize when XWingClient drops.
+        // However XWing::encapsulate will use zeroize() after it's done
+        XWing::encapsulate(&mut self.csprng, &mut self.server_public)
     }
 }
 
@@ -477,8 +524,8 @@ mod tests {
     #[test]
     fn client_and_server() {
         let csprng = OsRng;
-        let server = XWingServer::new(csprng);
-        let client = XWingClient::new(server.public, csprng);
+        let (server, server_public_key) = XWingServer::new(csprng);
+        let client = XWingClient::new(server_public_key, csprng);
 
         let (client_shared_key, client_cipher) = client.encapsulate();
         let server_shared_key = server.decapsulate(client_cipher);
