@@ -17,25 +17,25 @@ pub enum Error {
 }
 
 // NOTE: ML-KEM is not finalised and thus these values can change
-#[cfg(any(test, serialize_secret_key))]
+#[cfg(any(feature = "test", feature = "serialize_secret_key"))]
 const XWING_SECRET_KEY_BYTES_LENGTH: usize = 2464;
 const XWING_PUBLIC_KEY_BYTES_LENGTH: usize = 1216;
 const XWING_CIPHERTEXT_BYTES_LENGTH: usize = 1120;
 const XWING_SHARED_KEY_BYTES_LENGTH: usize = 32;
 
-#[cfg(any(test, serialize_secret_key))]
+#[cfg(any(feature = "test", feature = "serialize_secret_key"))]
 type XWingSecretKey = [u8; XWING_SECRET_KEY_BYTES_LENGTH];
 type XWingPublicKey = [u8; XWING_PUBLIC_KEY_BYTES_LENGTH];
-#[cfg(any(test, serialize_shared_key))]
+#[cfg(any(feature = "test", feature = "serialize_secret_key"))]
 type XWingSharedKey = [u8; XWING_SHARED_KEY_BYTES_LENGTH];
 type XWingCiphertext = [u8; XWING_CIPHERTEXT_BYTES_LENGTH];
 
-#[cfg(any(test, serialize_secret_key))]
+#[cfg(any(feature = "test", feature = "serialize_secret_key"))]
 const ML_KEM_768_SECRET_KEY_BYTES_LENGTH: usize = pqc_kyber::KYBER_SECRETKEYBYTES;
 const ML_KEM_768_PUBLIC_KEY_BYTES_LENGTH: usize = pqc_kyber::KYBER_PUBLICKEYBYTES;
 const ML_KEM_768_CIPHERTEXT_BYTES_LENGTH: usize = pqc_kyber::KYBER_CIPHERTEXTBYTES;
 
-#[cfg(any(test, serialize_secret_key))]
+#[cfg(any(feature = "test", feature = "serialize_secret_key"))]
 const X25519_SECRET_KEY_BYTES_LENGTH: usize = 32;
 const X25519_PUBLIC_KEY_BYTES_LENGTH: usize = 32;
 type X25519PublicKey = [u8; X25519_PUBLIC_KEY_BYTES_LENGTH];
@@ -47,6 +47,7 @@ const X25519_CIPHERTEXT_BYTES_LENGTH: usize = 32;
 // is fine because ASCII is a subset of UTF-8.
 const X_WING_LABEL: &[u8] = "\\.//^\\".as_bytes();
 
+#[cfg_attr(all(feature = "serde", feature = "serialize_secret_key"), derive(Serialize, Deserialize))]
 #[derive(Clone, Zeroize, ZeroizeOnDrop)]
 pub struct SecretKey {
     ml_kem_secret: MlKemSecretKey,
@@ -54,8 +55,8 @@ pub struct SecretKey {
     x25519_public: X25519PublicKey,
 }
 
-#[cfg(feature = "serde")]
-#[derive(Serialize, Deserialize, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug, Clone, Copy)]
 pub struct PublicKey {
     #[serde(with = "serde_arrays")]
     ml_kem_public: MlKemPublicKey,
@@ -75,8 +76,8 @@ impl PartialEq for PublicKey {
     }
 }
 
-#[cfg(feature = "serde")]
-#[derive(Serialize, Deserialize, Clone, Zeroize, ZeroizeOnDrop)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug, Clone, Zeroize, ZeroizeOnDrop)]
 pub struct Ciphertext {
     #[serde(with = "serde_arrays")]
     ml_kem_cipher: [u8; ML_KEM_768_CIPHERTEXT_BYTES_LENGTH],
@@ -96,17 +97,8 @@ impl PartialEq for Ciphertext {
     }
 }
 
-impl Debug for Ciphertext {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Ciphertext")
-            .field("ml_kem_cipher", &self.ml_kem_cipher)
-            .field("x25519_cipher", &self.x25519_cipher)
-            .finish()
-    }
-}
-
-#[cfg(feature = "serde")]
-#[derive(Serialize, Deserialize, Debug, Clone, Zeroize, ZeroizeOnDrop)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug, Clone, Zeroize, ZeroizeOnDrop)]
 pub struct SharedKey([u8; XWING_SHARED_KEY_BYTES_LENGTH]);
 
 impl ConstantTimeEq for SharedKey {
@@ -247,7 +239,8 @@ impl Kem for XWing {
 }
 
 impl SecretKey {
-    #[cfg(any(test, serialize_secret_key))]
+    
+    #[cfg(any(feature = "test", feature = "serialize_secret_key"))]
     pub fn from_bytes(bytes: XWingSecretKey) -> Result<Self, Error> {
         let ml_kem_secret = bytes[0..ML_KEM_768_SECRET_KEY_BYTES_LENGTH]
             .try_into()
@@ -273,7 +266,7 @@ impl SecretKey {
         })
     }
 
-    #[cfg(any(test, serialize_secret_key))]
+    #[cfg(any(feature = "test", feature = "serialize_secret_key"))]
     pub fn to_bytes(&self) -> XWingSecretKey {
         let mut bytes = [0u8; XWING_SECRET_KEY_BYTES_LENGTH];
         bytes[0..ML_KEM_768_SECRET_KEY_BYTES_LENGTH].copy_from_slice(&self.ml_kem_secret);
@@ -345,7 +338,7 @@ impl Ciphertext {
     }
 }
 
-#[cfg(any(test, serialize_shared_key))]
+#[cfg(any(feature = "test", feature = "serialize_shared_key"))]
 impl SharedKey {
     pub fn from_bytes(bytes: XWingSharedKey) -> Self {
         SharedKey(bytes)
