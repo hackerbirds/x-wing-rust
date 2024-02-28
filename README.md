@@ -9,20 +9,20 @@ The X-Wing paper which includes the IND-CCA security proof is at https://eprint.
 
 *Please do note that X-Wing is designed with ML-KEM-768/X25519 specifically, and that changing these primitives to something else could break the security of X-Wing.*
 
-# IMPORTANT
+# ! IMPORTANT !
 
-## This library did \_**NOT**\_...
+## *This library did \_NOT\_...*
 
 - Implement and verify the test vectors
 
-The Kyber library we're using does not allow for deterministic decaps/encaps which is needed for the test vectors.
+The Kyber library we're using does not allow for deterministic decapsulation/encapsulation which is needed for the test vectors.
 
-- Check for any time-constantness
+- Properly check time-constant operations
 
-The X25519 and ML-KEM implementation are out of our control, and we are not checking for time-constant operations when it comes to generation etc. may not be time-constant. 
+The X25519 and ML-KEM implementation are out of our control, and we are not checking for time-constant operations when it comes to generation etc. Such implementation that aren't constant-time are dangerous. 
 However we do attempt to have a constant-time equality check for `PublicKey`, `SharedKey` and `Ciphertext` using the `subtle` crate.
 
-- Received any audits of any sort
+- Receive any audits of any sort
 
 ...and we are absolutely not professionals. We wrote this for fun and learning, although this library may serve as a reference point to someone else trying to build a more serious library. Having said that, feel free to give us feedback.
 
@@ -31,6 +31,9 @@ However we do attempt to have a constant-time equality check for `PublicKey`, `S
 The recommended usage is with `XWingServer` and `XWingClient`. `XWingServer` is the part that generates the KEM secret and decapsulation (typically a server, hence the name) while `XWingClient` handles the generation of the shared key and the encapsulation using the server's public key.
 
 ```rust
+use x_wing::{XWingClient, XWingServer};
+use rand::rngs::OsRng;
+
 let csprng = OsRng;
 let server = XWingServer::new(csprng);
 let client = XWingClient::new(server.public, csprng);
@@ -41,11 +44,14 @@ let server_shared_key = server.decapsulate(client_cipher);
 assert_eq!(client_shared_key, server_shared_key);
 ```
 
-This usage makes it Hard To Fuck Up:tm: because Rust will prevent you from leaking the secret, and will safely zeroize everything after encapsulating and decapsulating.
+This usage makes it Hard To Fuck Up™ because Rust will prevent you from leaking the secret, and will safely zeroize everything after encapsulating and decapsulating.
 
 If you don't want that, you may also use `XWing` directly, and feed it the necessary secrets yourself:
 
 ```rust
+use x_wing::XWing;
+use rand::rngs::OsRng;
+
 // In this example, Alice is the "client" and Bob is the server. 
 let csprng = OsRng;
 let (secret_key_bob, pub_key_bob) = XWing::derive_key_pair(csprng);
