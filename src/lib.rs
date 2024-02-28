@@ -455,7 +455,8 @@ impl XWingServer {
     /// let shared_key = server.decapsulate(client_cipher);
     /// // After this point, `server` is dropped and no longer exists
     /// ```
-    pub fn decapsulate<Ct: AsMut<Ciphertext>>(mut self, cipher: Ct) -> SharedKey {
+    pub fn decapsulate(mut self, cipher: Ciphertext) -> SharedKey {
+        // NOTE: XWing::encapsulate will use zeroize() on the secret key and ciphertext after it's done
         XWing::decapsulate(cipher, &mut self.secret)
     }
 }
@@ -509,9 +510,7 @@ impl<R: Rng + CryptoRng> XWingClient<R> {
     /// Generate a shared key, and encapsulate it with the server's public key.
     /// The [`SharedKey`] should be kept secret and the [`Ciphertext`] should be sent to the server.
     pub fn encapsulate(mut self) -> (SharedKey, Ciphertext) {
-        // NOTE: We're doing a copy of server_public, which we won't
-        // be able to zeroize when XWingClient drops.
-        // However XWing::encapsulate will use zeroize() after it's done
+        // NOTE: XWing::encapsulate will use zeroize() on the public key after it's done
         XWing::encapsulate(&mut self.csprng, &mut self.server_public)
     }
 }
