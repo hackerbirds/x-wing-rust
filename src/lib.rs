@@ -50,7 +50,7 @@ const X_WING_LABEL: &[u8] = "\\.//^\\".as_bytes();
     all(feature = "serde", feature = "serialize_secret_key"),
     derive(Serialize, Deserialize)
 )]
-#[derive(Clone, Zeroize, ZeroizeOnDrop)]
+#[derive(Zeroize, ZeroizeOnDrop)]
 pub struct SecretKey {
     ml_kem_secret: MlKemSecretKey,
     x25519_secret: X25519SecretKey,
@@ -91,7 +91,7 @@ impl PartialEq for PublicKey {
 }
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Debug, Clone, Zeroize, ZeroizeOnDrop)]
+#[derive(Debug, Zeroize, ZeroizeOnDrop)]
 pub struct Ciphertext {
     #[serde(with = "serde_arrays")]
     ml_kem_cipher: [u8; ML_KEM_768_CIPHERTEXT_BYTES_LENGTH],
@@ -118,7 +118,7 @@ impl PartialEq for Ciphertext {
 }
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Debug, Clone, Zeroize, ZeroizeOnDrop)]
+#[derive(Debug, Zeroize, ZeroizeOnDrop)]
 pub struct SharedKey([u8; XWING_SHARED_KEY_BYTES_LENGTH]);
 
 impl ConstantTimeEq for SharedKey {
