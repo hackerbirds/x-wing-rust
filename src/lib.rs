@@ -1,3 +1,7 @@
+// Some constants give warnings
+#![allow(dead_code)]
+#![forbid(unsafe_code)]
+
 use pqc_kyber::{PublicKey as MlKemPublicKey, SecretKey as MlKemSecretKey};
 use rand::{CryptoRng, Rng};
 use serde::{Deserialize, Serialize};
@@ -17,25 +21,20 @@ pub enum Error {
 }
 
 // NOTE: ML-KEM is not finalised and thus these values can change
-#[cfg(any(feature = "test", feature = "serialize_secret_key"))]
 const XWING_SECRET_KEY_BYTES_LENGTH: usize = 2464;
 const XWING_PUBLIC_KEY_BYTES_LENGTH: usize = 1216;
 const XWING_CIPHERTEXT_BYTES_LENGTH: usize = 1120;
 const XWING_SHARED_KEY_BYTES_LENGTH: usize = 32;
 
-#[cfg(any(feature = "test", feature = "serialize_secret_key"))]
 type XWingSecretKey = [u8; XWING_SECRET_KEY_BYTES_LENGTH];
 type XWingPublicKey = [u8; XWING_PUBLIC_KEY_BYTES_LENGTH];
-#[cfg(any(feature = "test", feature = "serialize_secret_key"))]
 type XWingSharedKey = [u8; XWING_SHARED_KEY_BYTES_LENGTH];
 type XWingCiphertext = [u8; XWING_CIPHERTEXT_BYTES_LENGTH];
 
-#[cfg(any(feature = "test", feature = "serialize_secret_key"))]
 const ML_KEM_768_SECRET_KEY_BYTES_LENGTH: usize = pqc_kyber::KYBER_SECRETKEYBYTES;
 const ML_KEM_768_PUBLIC_KEY_BYTES_LENGTH: usize = pqc_kyber::KYBER_PUBLICKEYBYTES;
 const ML_KEM_768_CIPHERTEXT_BYTES_LENGTH: usize = pqc_kyber::KYBER_CIPHERTEXTBYTES;
 
-#[cfg(any(feature = "test", feature = "serialize_secret_key"))]
 const X25519_SECRET_KEY_BYTES_LENGTH: usize = 32;
 const X25519_PUBLIC_KEY_BYTES_LENGTH: usize = 32;
 type X25519PublicKey = [u8; X25519_PUBLIC_KEY_BYTES_LENGTH];
@@ -47,7 +46,10 @@ const X25519_CIPHERTEXT_BYTES_LENGTH: usize = 32;
 // is fine because ASCII is a subset of UTF-8.
 const X_WING_LABEL: &[u8] = "\\.//^\\".as_bytes();
 
-#[cfg_attr(all(feature = "serde", feature = "serialize_secret_key"), derive(Serialize, Deserialize))]
+#[cfg_attr(
+    all(feature = "serde", feature = "serialize_secret_key"),
+    derive(Serialize, Deserialize)
+)]
 #[derive(Clone, Zeroize, ZeroizeOnDrop)]
 pub struct SecretKey {
     ml_kem_secret: MlKemSecretKey,
@@ -239,8 +241,7 @@ impl Kem for XWing {
 }
 
 impl SecretKey {
-    
-    #[cfg(any(feature = "test", feature = "serialize_secret_key"))]
+    #[cfg(feature = "serialize_secret_key")]
     pub fn from_bytes(bytes: XWingSecretKey) -> Result<Self, Error> {
         let ml_kem_secret = bytes[0..ML_KEM_768_SECRET_KEY_BYTES_LENGTH]
             .try_into()
@@ -266,7 +267,7 @@ impl SecretKey {
         })
     }
 
-    #[cfg(any(feature = "test", feature = "serialize_secret_key"))]
+    #[cfg(feature = "serialize_secret_key")]
     pub fn to_bytes(&self) -> XWingSecretKey {
         let mut bytes = [0u8; XWING_SECRET_KEY_BYTES_LENGTH];
         bytes[0..ML_KEM_768_SECRET_KEY_BYTES_LENGTH].copy_from_slice(&self.ml_kem_secret);
@@ -338,7 +339,7 @@ impl Ciphertext {
     }
 }
 
-#[cfg(any(feature = "test", feature = "serialize_shared_key"))]
+#[cfg(feature = "serialize_shared_key")]
 impl SharedKey {
     pub fn from_bytes(bytes: XWingSharedKey) -> Self {
         SharedKey(bytes)
@@ -358,7 +359,7 @@ impl SharedKey {
 /// (the "client") and decapsulates their ciphertext.
 ///
 /// Here is a basic usage:
-/// ```
+/// ```ignore
 /// let csprng = OsRng;
 /// let server = XWingServer::generate(csprng);
 /// let client = XWingClient::new(server.public, csprng);
@@ -378,8 +379,10 @@ impl XWingServer {
     /// provide a cryptographically secure PRNG.
     ///
     /// Usage:
-    /// ```
-    /// let csprng = rand::OsRng;
+    /// ```ignore
+    /// use rand::OsRng;
+    /// 
+    /// let csprng = OsRng;
     /// let server = XWingServer::new(csprng);
     /// ```
     pub fn new<R: Rng + CryptoRng>(csprng: R) -> Self {
@@ -393,7 +396,7 @@ impl XWingServer {
     /// consumes [`XWingServer`], and you will no longer be able
     /// to use it afterward
     /// Usage:
-    /// ```
+    /// ```ignore
     /// let client_ciphertext: XWing::Ciphertext = ...
     /// let server: XWing::XWingServer = ...
     /// let shared_key = server.decapsulate(client_ciphertext);
@@ -409,7 +412,7 @@ impl XWingServer {
 /// the other person (the "server").
 ///
 /// Here is a basic usage:
-/// ```
+/// ```ignore
 /// let csprng = OsRng;
 /// let server = XWingServer::new(csprng);
 /// let client = XWingClient::new(server.public, csprng);
@@ -429,7 +432,7 @@ impl<R: Rng + CryptoRng> XWingClient<R> {
     /// provide a cryptographically secure PRNG.
     ///
     /// Usage:
-    /// ```
+    /// ```ignore
     /// let server_public_key: XWing::PublicKey = ...
     /// let csprng = rand::OsRng;
     /// let client = XWingClient::new(server_public_key, csprng);
@@ -451,7 +454,6 @@ impl<R: Rng + CryptoRng> XWingClient<R> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hex_literal::hex;
     use rand::rngs::OsRng;
 
     #[test]
@@ -477,8 +479,10 @@ mod tests {
         assert_eq!(shared_key_alice, shared_key_bob);
     }
 
+    #[cfg(feature = "serialize_secret_key")]
     #[test]
     fn test_vector_1_ietf() {
+        use hex_literal::hex;
         // Incomplete
         //
         // Values taken from https://github.com/FiloSottile/mlkem768/blob/main/xwing/xwing_test.go#L96
@@ -501,25 +505,31 @@ mod tests {
         let csprng = OsRng;
         let (secret_key, public_key) = XWing::derive_key_pair(csprng);
 
-        let other_secret =
-            SecretKey::from_bytes(secret_key.to_bytes()).expect("deserialisation works");
-        assert!(other_secret.ml_kem_secret.eq(&secret_key.ml_kem_secret));
-        assert!(other_secret
-            .x25519_secret
-            .as_bytes()
-            .eq(secret_key.x25519_secret.as_bytes()));
-        assert!(other_secret.x25519_public.eq(&secret_key.x25519_public));
+        #[cfg(feature = "serialize_secret_key")]
+        {
+            let other_secret =
+                SecretKey::from_bytes(secret_key.to_bytes()).expect("deserialisation works");
+            assert!(other_secret.ml_kem_secret.eq(&secret_key.ml_kem_secret));
+            assert!(other_secret
+                .x25519_secret
+                .as_bytes()
+                .eq(secret_key.x25519_secret.as_bytes()));
+            assert!(other_secret.x25519_public.eq(&secret_key.x25519_public));
+        }
 
         let other_public =
             PublicKey::from_bytes(public_key.to_bytes()).expect("deserialisation works");
         assert!(other_public.ml_kem_public.eq(&public_key.ml_kem_public));
         assert!(other_public.x25519_public.eq(&public_key.x25519_public));
 
-        let (shared_key, cipher) = XWing::encapsulate(csprng, public_key);
-        let other_cipher =
-            Ciphertext::from_bytes(cipher.to_bytes()).expect("deserialisation works");
-        assert_eq!(cipher, other_cipher);
-        let other_shared_key = SharedKey::from_bytes(shared_key.to_bytes());
-        assert_eq!(shared_key, other_shared_key);
+        #[cfg(feature = "serialize_shared_key")]
+        {
+            let (shared_key, cipher) = XWing::encapsulate(csprng, public_key);
+            let other_cipher =
+                Ciphertext::from_bytes(cipher.to_bytes()).expect("deserialisation works");
+            assert_eq!(cipher, other_cipher);
+            let other_shared_key = SharedKey::from_bytes(shared_key.to_bytes());
+            assert_eq!(shared_key, other_shared_key);
+        }
     }
 }
