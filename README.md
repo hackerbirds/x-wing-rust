@@ -37,11 +37,11 @@ use x_wing::{XWingClient, XWingServer};
 use rand::rngs::OsRng;
 
 let csprng = OsRng;
-let (server, server_public_key) = XWingServer::new(csprng);
+let (server, server_public_key) = XWingServer::new(csprng)?;
 let client = XWingClient::new(server_public_key, csprng);
 
-let (client_shared_key, client_cipher) = client.encapsulate();
-let server_shared_key = server.decapsulate(client_cipher);
+let (client_shared_key, client_cipher) = client.encapsulate()?;
+let server_shared_key = server.decapsulate(client_cipher)?;
 
 assert_eq!(client_shared_key, server_shared_key);
 ```
@@ -56,10 +56,10 @@ use rand::rngs::OsRng;
 
 // In this example, Alice is the "client" and Bob is the "server". 
 let csprng = OsRng;
-let (secret_key_bob, pub_key_bob) = XWing::derive_key_pair(csprng);
+let (secret_key_bob, pub_key_bob) = XWing::derive_key_pair(csprng)?;
 
-let (shared_key_alice, cipher_alice) = XWing::encapsulate(csprng, pub_key_bob);
-let shared_key_bob = XWing::decapsulate(cipher_alice, secret_key_bob);
+let (shared_key_alice, cipher_alice) = XWing::encapsulate(csprng, pub_key_bob)?;
+let shared_key_bob = XWing::decapsulate(cipher_alice, secret_key_bob)?;
 
 assert_eq!(shared_key_alice, shared_key_bob);
 ```
