@@ -2,7 +2,7 @@
 
 X-Wing is a Hybrid KEM combining X25519 and ML-KEM-768 (formerly known as Kyber-768). It is designed such that if either X25519 or ML-KEM-768 is secure, then X-Wing is also secure.
 
-The X25519 implementation we're using is `x25519-dalek` and the ML-KEM implementation we're using is `pycrypto-kyber`.
+The X25519 implementation we're using is `x25519-dalek` and the ML-KEM implementation we're using is `pyc_kyber`.
 
 X-Wing is currently under an RFC draft at https://www.ietf.org/archive/id/draft-connolly-cfrg-xwing-kem-00.html.
 The X-Wing paper which includes the IND-CCA security proof is at https://eprint.iacr.org/2024/039.pdf. 
