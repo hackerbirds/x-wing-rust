@@ -72,5 +72,6 @@ Incluse the following like in the `[depedencies]` section of your `Cargo.toml`:
 
 # Design considerations
 
-- `SecretKey`, `Ciphertext`, and `SharedKey` are zeroized on Drop.
-- The SecretKey is consumed after `decapsulate` to prevent secret reusage. SecretKey and SharedKey are not serialisable by default, although if you must, you can use the `serialise_secret_key` (and `serialise_shared_key`) feature.
+This crate makes it difficult to accidentally leak/keep secrets/one-time values in memory. The structures will zeroize and drop all the secrets/one-time values after usage. You must consume `XWingClient`/`XWingServer` to encapsulate/decapsulate the values. If needed, secrets also implement a constant-time `PartialEq` through the `subtle` crate. 
+
+Serializing/deserializing secret values is only permitted when activating non-default flags, and of course you should be aware of the risks when doing that. It might also be that `serde` does not do constant-time serialisation, so keep this in mind. However, `to_bytes()` is probably constant-time, but `from_bytes()` might not be because of deserialization errors if the input slice is too small.
