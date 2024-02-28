@@ -503,7 +503,7 @@ mod tests {
         use hex_literal::hex;
         // Incomplete
         //
-        // Values taken from https://github.com/FiloSottile/mlkem768/blob/main/xwing/xwing_test.go#L96
+        // Values taken from https://dconnolly.github.io/draft-connolly-cfrg-xwing-kem/draft-connolly-cfrg-xwing-kem.html#name-test-vectors-todo-replace-w
         // Because the values on the IETF document lack the X25519 public key in the secret key section?
         const KEY_SEED: [u8; 96] = hex!(
             "7f9c2ba4e88f827d616045507605853ed73b8093f6efbc88eb1a6eacfa66ef263cb1eea988004b93103cfb0aeefd2a686e01fa4a58e8a3639ca8a1e3f9ae57e235b8cc873c23dc62b8d260169afa2f75ab916a58d974918835d25e6a435085b2"
