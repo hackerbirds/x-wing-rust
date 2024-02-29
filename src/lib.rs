@@ -123,8 +123,8 @@ pub enum Error {
     SerialiseError,
     #[error("Unexpected data when deserialising")]
     DeserialiseError,
-    #[error("Kyber error")]
-    KyberError(#[from] pqc_kyber::KyberError),
+    #[error("ML-KEM error")]
+    MlKemError(#[from] pqc_kyber::KyberError),
 }
 
 // NOTE: ML-KEM is not finalised and thus these values can change
