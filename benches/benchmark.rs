@@ -16,14 +16,12 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
                 let (shared_key_alice, cipher_alice) = XWing::encapsulate(
                     csprng,
-                    PublicKey::from_bytes(pub_key_bob.to_bytes())
-                        .expect("serialization roundtrip works"),
+                    PublicKey::from_bytes(pub_key_bob.to_bytes()).unwrap(),
                 )
                 .unwrap();
 
                 let shared_key_bob = XWing::decapsulate(
-                    Ciphertext::from_bytes(cipher_alice.to_bytes())
-                        .expect("serialization roundtrip works"),
+                    Ciphertext::from_bytes(cipher_alice.to_bytes()).unwrap(),
                     secret_key_bob,
                 )
                 .unwrap();
@@ -42,6 +40,39 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             assert_eq!(shared_key_alice, shared_key_bob);
         })
     });
+    group.bench_function(
+        "XWingServer + XWingclient: Generate+Encaps+Decaps with PK+CT serialization roundtrip",
+        |b| {
+            b.iter(|| {
+                let (server, server_public) = XWingServer::new(csprng).unwrap();
+                let client = XWingClient::new(
+                    PublicKey::from_bytes(server_public.to_bytes()).unwrap(),
+                    csprng,
+                );
+                let (client_key, client_cipher) = client.encapsulate().unwrap();
+                let server_key = server
+                    .decapsulate(Ciphertext::from_bytes(client_cipher.to_bytes()).unwrap())
+                    .unwrap();
+
+                assert_eq!(client_key, server_key);
+            })
+        },
+    );
+    group.bench_function(
+        "XWingServer + XWingclient: Generate+Encaps+Decaps with CT-only serialization roundtrip",
+        |b| {
+            b.iter(|| {
+                let (server, server_public) = XWingServer::new(csprng).unwrap();
+                let client = XWingClient::new(server_public, csprng);
+                let (client_key, client_cipher) = client.encapsulate().unwrap();
+                let server_key = server
+                    .decapsulate(Ciphertext::from_bytes(client_cipher.to_bytes()).unwrap())
+                    .unwrap();
+
+                assert_eq!(client_key, server_key);
+            })
+        },
+    );
     group.bench_function("XWingServer + XWingclient: Generate+Encaps+Decaps", |b| {
         b.iter(|| {
             let (server, server_public) = XWingServer::new(csprng).unwrap();
@@ -52,7 +83,6 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             assert_eq!(client_key, server_key);
         })
     });
-
     group.bench_function("Deserialise+Serialise public key", |b| {
         let (_, public_key) = XWing::derive_key_pair(csprng).unwrap();
         b.iter(|| PublicKey::from_bytes(public_key.to_bytes()))
