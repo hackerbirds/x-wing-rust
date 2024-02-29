@@ -103,7 +103,6 @@
 //! serialisation, so keep this in mind. However, `to_bytes()` is probably constant-time, but `from_bytes()`
 //! might not be because of deserialization errors if the input slice is too small.
 
-// Some constants give warnings
 #![allow(dead_code)]
 #![forbid(unsafe_code)]
 
@@ -317,6 +316,7 @@ impl XWing {
 
     /// Generate and encapsulate a secret value (as the "client") into a [`Ciphertext`]
     /// which should be sent to the other person (the "server").
+    /// Successful encapsulation will zeroize the public key.
     pub fn encapsulate<R: Rng + CryptoRng, Pk: AsMut<PublicKey>>(
         mut csprng: R,
         mut public_key: Pk,
@@ -350,6 +350,7 @@ impl XWing {
 
     /// Decapsulate a [`Ciphertext`] using the KEM's [`SecretKey`] (that the "server" has)
     /// to retrieve [`SharedSecret`] sent by the "client"
+    /// Successful decapuslation will zeroize the secret key and ciphertext.
     pub fn decapsulate<Ct: AsMut<Ciphertext>, Sk: AsMut<SecretKey>>(
         mut cipher: Ct,
         mut secret_key: Sk,
