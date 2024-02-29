@@ -1,4 +1,4 @@
-//! # A (not serious) implementation of the "X-Wing" Hybrid KEM in Rust
+//! # A POC implementation of the "X-Wing" Hybrid KEM in Rust
 //!
 //! X-Wing is a Hybrid KEM combining X25519 and ML-KEM-768 (formerly known as Kyber-768).
 //! It is designed such that if either X25519 or ML-KEM-768 is secure, then X-Wing is also secure.
@@ -11,7 +11,9 @@
 //! *Please do note that X-Wing is designed with ML-KEM-768/X25519 specifically, and that changing
 //! these primitives to something else could break the security of X-Wing.*
 //!
-//! # ! IMPORTANT !
+//! # ⚠️ IMPORTANT
+//!
+//! This library is not ready or safe for production.
 //!
 //! ## *This library did \_NOT\_...*
 //!
@@ -41,6 +43,9 @@
 //! [`XWingServer`] is the party that generates the KEM secret and handles decapsulation while [`XWingClient`]
 //! generates the shared secret and handles the encapsulation using [`XWingServer`]'s public key.
 //!
+//! These structs make it difficult to Fuck Up™ because this library will do a best-effort attempt at
+//! preventing you from leaking the secret, and will safely zeroize everything after encapsulating and decapsulating.
+//!
 //! ```rust
 //! # use std::error::Error;
 //! #
@@ -60,9 +65,6 @@
 //! #     Ok(())
 //! # }
 //! ```
-//!
-//! These structs make it difficult to Fuck Up™ because Rust will prevent you from leaking the secret, and
-//! will safely zeroize everything after encapsulating and decapsulating.
 //!
 //! ### More general (but riskier) API  
 //!

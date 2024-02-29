@@ -1,4 +1,4 @@
-# A (not serious) implementation of the "X-Wing" Hybrid KEM in Rust
+# A POC implementation of the "X-Wing" Hybrid KEM in Rust
 
 X-Wing is a Hybrid KEM combining X25519 and ML-KEM-768 (formerly known as Kyber-768). It is designed such that if either X25519 or ML-KEM-768 is secure, then X-Wing is also secure.
 
@@ -9,7 +9,9 @@ The X-Wing paper which includes the IND-CCA security proof is at https://eprint.
 
 *Please do note that X-Wing is designed with ML-KEM-768/X25519 specifically, and that changing these primitives to something else could break the security of X-Wing.*
 
-# ! IMPORTANT !
+# ⚠️ IMPORTANT
+
+This library is not ready or safe for production.
 
 ## *This library did \_NOT\_...*
 
@@ -26,11 +28,13 @@ However we do attempt to have a constant-time equality check for `PublicKey`, `S
 
 ...and we are absolutely not professionals. We wrote this for fun and learning, although this library may serve as a reference point to someone else trying to build a more serious library. Having said that, feel free to give us feedback.
 
-# Recommended sage
+# Recommended usage
 
 The recommended usage is with `XWingServer` and `XWingClient`. Note that "server" and "client" are just terms to differentiate between who's starting the key exchange. `XWingServer` can very well be used by clients. 
 
 `XWingServer` is the party that generates the KEM secret and handles decapsulation while `XWingClient` generates the shared secret and handles the encapsulation using `XWingServer`'s public key.
+
+These structs make it difficult to Fuck Up™ because this library will do a best-effort attempt at preventing you from leaking the secret, and will safely zeroize everything after encapsulating and decapsulating.
 
 ```rust
 use x_wing::{XWingClient, XWingServer};
@@ -45,8 +49,6 @@ let server_shared_secret = server.decapsulate(client_cipher)?;
 
 assert_eq!(client_shared_secret, server_shared_secret);
 ```
-
-These structs make it difficult to Fuck Up™ because Rust will prevent you from leaking the secret, and will safely zeroize everything after encapsulating and decapsulating.
 
 ### More general (but riskier) API 
 
