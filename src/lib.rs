@@ -91,12 +91,6 @@
 //! # }
 //! ```
 //!
-//! # Install
-//!
-//! Include the following line in the `[depedencies]` section of your `Cargo.toml`:
-//!
-//! ```x-wing = { git = "https://github.com/hackerbirds/x-wing-rust.git" }```
-//!
 //! # Design considerations
 //!
 //! This crate makes it difficult to accidentally leak/keep secrets/one-time values in memory. The structures

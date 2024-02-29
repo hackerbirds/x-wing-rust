@@ -74,6 +74,8 @@ Include the following line in the `[depedencies]` section of your `Cargo.toml`:
 
 ```x-wing = { git = "https://github.com/hackerbirds/x-wing-rust.git" }```
 
+The crate in its current state will not be uploaded to crates.io because it simply isn't ready to be used in production--something that most people assume when they look for crates there, especially for cryptography.
+
 # Design considerations
 
 This crate makes it difficult to accidentally leak/keep secrets/one-time values in memory. The structures will zeroize and drop all the secrets/one-time values after usage. You must consume `XWingClient`/`XWingServer` to encapsulate/decapsulate the values. If needed, secrets also implement a constant-time `PartialEq` through the `subtle` crate. 
