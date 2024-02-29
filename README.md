@@ -11,17 +11,17 @@ The X-Wing paper which includes the IND-CCA security proof is at https://eprint.
 
 # ⚠️ IMPORTANT
 
-This library is not ready or safe for production.
+This library is not ready or safe for production. The ML-KEM/Kyber library we are using isn't currently compliant with the latest standard draft. See https://github.com/Argyle-Software/kyber/issues/54. 
 
 ## *This library did \_NOT\_...*
 
 - Implement and verify the test vectors
 
-The Kyber library we're using does not allow for deterministic decapsulation/encapsulation which is needed for the test vectors.
+The ML-KEM library we're using does not allow for deterministic decapsulation/encapsulation which is needed for the test vectors, but we do try to verify the ones we can. Furthermore, ML-KEM isn't finalised yet, so the test vectors might change again in the future.
 
-- Properly check time-constant operations
+- Check for time-constant operations
 
-The X25519 and ML-KEM implementation are out of our control, and we are not checking for time-constant operations when it comes to generation etc. Such implementation that aren't constant-time are dangerous. 
+The X25519 and ML-KEM libraries are out of our control, and we are not checking for time-constant operations when it comes to generation etc. Such implementation that aren't constant-time are dangerous. 
 However we do attempt to have a constant-time equality check for `PublicKey`, `SharedSecret` and `Ciphertext` using the `subtle` crate.
 
 - Receive any audits of any sort
