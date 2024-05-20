@@ -9,6 +9,15 @@
 //!
 //! *Please do note that X-Wing is designed with ML-KEM-768/X25519 specifically, and that changing these primitives to something else could break the security of X-Wing.*
 //!
+//! ## Security
+//!
+//! The safety of the implementation of this crate mainly depends:
+//!
+//! - The implementation of the `ml-kem` and `x25519-dalek`, which we don't control.
+//! - The randomness of the cryptographic RNG used (usually `OsRng`), which is up to the operating system.
+//!
+//! Beyond that, we try to make sure that all secret values are handled in constant time, and are zeroized from memory after being used/dropped.
+//!
 //! ## This library is not production ready
 //!
 //! This library did not receive any audits, and the `ml-kem` crate we're using is not yet stable, and you should not use this in any production setting.
@@ -21,7 +30,7 @@
 //!
 //! [`XWingDecapsulator`] is the party that generates the KEM secret and handles decapsulation while [`XWingEncapsulator`] generates the shared secret and handles the encapsulation using [`XWingDecapsulator`]'s public key.
 //!
-//! These structs make it difficult to Fuck Up™ because this library will do a best-effort attempt at preventing you from leaking the secret, and will safely zeroize everything after encapsulating and decapsulating.
+//! These structs make it difficult to Fuck Up™ because this library will do a best-effort attempt at preventing you from leaking the secret, and will safely zeroize everything after completing encapsulating and decapsulating.
 //!
 //! ```rust
 //! # use std::error::Error;
@@ -74,13 +83,6 @@
 //! `cargo add --git https://github.com/hackerbirds/x-wing-rust`
 //!
 //! The crate in its current state will not be uploaded to crates.io because it simply isn't ready to be used in production--something that most people assume when they look for crates there, especially for cryptography.
-//!
-//! # Design considerations
-//!
-//! This crate makes it difficult to accidentally leak/keep secrets/one-time values in memory. The structures will zeroize and drop all the secrets/one-time values after usage. You must consume [`XWingEncapsulator`]/[`XWingDecapsulator`] to encapsulate/decapsulate the values. If needed, secrets also implement a constant-time `PartialEq` through the `subtle` crate.
-//!
-//! Serializing/deserializing secret values is only permitted when activating non-default flags, and of course you should be aware of the risks when doing that. It might also be that `serde` does not do constant-time serialisation, so keep this in mind. However, `to_bytes()` is probably constant-time, but `from_bytes()` might not be because of deserialization errors if the input slice is too small.
-
 #![allow(dead_code)]
 #![forbid(unsafe_code)]
 
@@ -103,6 +105,8 @@ pub enum Error {
     SerialiseError,
     #[error("Unexpected data when deserialising")]
     DeserialiseError,
+    #[error("ML-KEM unexpectedly failed")]
+    MlKemError,
 }
 
 // NOTE: ML-KEM is not finalised and thus these values can change
@@ -327,7 +331,7 @@ impl XWing {
         let (ml_kem_cipher, ml_kem_shared_secret) =
             MlKem768PublicKey::from_bytes(&pk.ml_kem_public.into())
                 .encapsulate(&mut csprng)
-                .map_err(|_| Error::DeserialiseError)?;
+                .map_err(|_| Error::MlKemError)?;
 
         let shared_secret = Self::combiner(
             &ml_kem_shared_secret.into(),
@@ -367,7 +371,7 @@ impl XWing {
         let (ml_kem_cipher, ml_kem_shared_secret) =
             MlKem768PublicKey::from_bytes(&pk.ml_kem_public.into())
                 .encapsulate_deterministic(&deterministic_m.into())
-                .map_err(|_| Error::DeserialiseError)?;
+                .map_err(|_| Error::MlKemError)?;
 
         let shared_secret = Self::combiner(
             &ml_kem_shared_secret.into(),
@@ -399,7 +403,7 @@ impl XWing {
 
         let ml_kem_shared_secret = MlKem768SecretKey::from_bytes(&sk.ml_kem_secret.into())
             .decapsulate(&ct.ml_kem_cipher.into())
-            .map_err(|_| Error::DeserialiseError)?;
+            .map_err(|_| Error::MlKemError)?;
 
         let x25519_shared_secret = sk
             .x25519_secret
