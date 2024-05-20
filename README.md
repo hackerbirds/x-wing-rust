@@ -2,29 +2,16 @@
 
 X-Wing is a Hybrid KEM combining X25519 and ML-KEM-768 (formerly known as Kyber-768). It is designed such that if either X25519 or ML-KEM-768 is secure, then X-Wing is also secure.
 
-The X25519 implementation we're using is `x25519_dalek` and the ML-KEM implementation we're using is `pqc_kyber`.
+The X25519 implementation we're using is the `x25519_dalek` and the ML-KEM implementation we're using is the `ml-kem` crate.
 
 X-Wing is currently under an RFC draft at https://www.ietf.org/archive/id/draft-connolly-cfrg-xwing-kem-00.html.
 The X-Wing paper which includes the IND-CCA security proof is at https://eprint.iacr.org/2024/039.pdf. 
 
 *Please do note that X-Wing is designed with ML-KEM-768/X25519 specifically, and that changing these primitives to something else could break the security of X-Wing.*
 
-# ⚠️ IMPORTANT
+## This library is not production ready
 
-This library is not ready or safe for production. The ML-KEM/Kyber library we are using isn't currently compliant with the latest standard draft. See https://github.com/Argyle-Software/kyber/issues/54. 
-
-## *This library did \_NOT\_...*
-
-- Implement and verify the test vectors
-
-The ML-KEM library we're using does not allow for deterministic decapsulation/encapsulation which is needed for the test vectors, but we do try to verify the ones we can. Furthermore, ML-KEM isn't finalised yet, so the test vectors might change again in the future.
-
-- Check for time-constant operations
-
-The X25519 and ML-KEM libraries are out of our control, and we are not checking for time-constant operations when it comes to generation etc. Such implementation that aren't constant-time are dangerous. 
-However we do attempt to have a constant-time equality check for `PublicKey`, `SharedSecret` and `Ciphertext` using the `subtle` crate.
-
-- Receive any audits of any sort
+This library did not receive any audits, and the `ml-kem` crate we're using is not yet stable, and you should not use this in any production setting. 
 
 ...and we are absolutely not professionals. We wrote this for fun and learning, although this library may serve as a reference point to someone else trying to build a more serious library. Having said that, feel free to give us feedback.
 

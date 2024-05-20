@@ -9,7 +9,7 @@ repository = "https://github.com/hackerbirds/x-wing-rust"
 
 [dependencies]
 thiserror = "1.0"
-pqc_kyber = { version = "0.7", features = ["std"] }
+ml-kem = { version = "0.1.0", features = ["deterministic"] }
 rand = "0.8.5"
 sha3 = "0.10.8"
 x25519-dalek = { version = "2", features = ["static_secrets", "zeroize"] }
