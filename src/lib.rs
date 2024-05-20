@@ -71,9 +71,7 @@
 //!
 //! Use `cargo`:
 //!
-//! ```
-//! cargo add --git https://github.com/hackerbirds/x-wing-rust
-//! ```
+//! `cargo add --git https://github.com/hackerbirds/x-wing-rust`
 //!
 //! The crate in its current state will not be uploaded to crates.io because it simply isn't ready to be used in production--something that most people assume when they look for crates there, especially for cryptography.
 //!
