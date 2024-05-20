@@ -28,13 +28,13 @@ use x_wing::{XWingEncapsulator, XWingDecapsulator};
 use rand::rngs::OsRng;
 
 let csprng = OsRng;
-let (decapsulator, decapsulator_public_key) = XWingDecapsulator::new(csprng)?;
-let encapsulator = XWingEncapsulator::new(decapsulator_public_key, csprng);
+let (server, server_public_key) = XWingDecapsulator::new(csprng)?;
+let encapsulator = XWingEncapsulator::new(server_public_key, csprng);
 
 let (encapsulator_shared_secret, encapsulator_cipher) = encapsulator.encapsulate()?;
-let decapsulator_shared_secret = decapsulator.decapsulate(encapsulator_cipher)?;
+let server_shared_secret = server.decapsulate(encapsulator_cipher)?;
 
-assert_eq!(encapsulator_shared_secret, decapsulator_shared_secret);
+assert_eq!(encapsulator_shared_secret, server_shared_secret);
 ```
 
 ### More general (but riskier) API 
@@ -45,7 +45,7 @@ If you don't want to use `XWingDecapsulator`/`XWingEncapsulator`, you may use `X
 use x_wing::XWing;
 use rand::rngs::OsRng;
 
-// In this example, Alice is the "encapsulator" and Bob is the "decapsulator". 
+// In this example, Alice is the "encapsulator" and Bob is the "server". 
 let csprng = OsRng;
 let (secret_key_bob, pub_key_bob) = XWing::derive_key_pair(csprng)?;
 
@@ -57,9 +57,11 @@ assert_eq!(shared_secret_alice, shared_secret_bob);
 
 # Install
 
-Include the following line in the `[depedencies]` section of your `Cargo.toml`:
+Use `cargo`:
 
-```x-wing = { git = "https://github.com/hackerbirds/x-wing-rust.git" }```
+```
+cargo add --git https://github.com/hackerbirds/x-wing-rust
+```
 
 The crate in its current state will not be uploaded to crates.io because it simply isn't ready to be used in production--something that most people assume when they look for crates there, especially for cryptography.
 

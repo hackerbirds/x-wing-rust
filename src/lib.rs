@@ -69,9 +69,11 @@
 //! 
 //! # Install
 //! 
-//! Include the following line in the `[depedencies]` section of your `Cargo.toml`:
+//! Use `cargo`:
 //! 
-//! ```x-wing = { git = "https://github.com/hackerbirds/x-wing-rust.git" }```
+//! ```
+//! cargo add --git https://github.com/hackerbirds/x-wing-rust
+//! ```
 //! 
 //! The crate in its current state will not be uploaded to crates.io because it simply isn't ready to be used in production--something that most people assume when they look for crates there, especially for cryptography.
 //! 
