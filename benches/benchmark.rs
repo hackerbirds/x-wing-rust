@@ -1,6 +1,6 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use rand::rngs::OsRng;
-use x_wing::{Ciphertext, PublicKey, XWing, XWingEncapsulator, XWingDecapsulator};
+use x_wing::{Ciphertext, PublicKey, XWing, XWingDecapsulator, XWingEncapsulator};
 
 pub fn criterion_benchmark(c: &mut Criterion) {
     let csprng = OsRng;
@@ -73,16 +73,19 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             })
         },
     );
-    group.bench_function("XWingDecapsulator + XWingEncapsulator: Generate+Encaps+Decaps", |b| {
-        b.iter(|| {
-            let (decapsulator, decapsulator_public) = XWingDecapsulator::new(csprng).unwrap();
-            let encapsulator = XWingEncapsulator::new(decapsulator_public, csprng);
-            let (encapsulator_key, encapsulator_cipher) = encapsulator.encapsulate().unwrap();
-            let decapsulator_key = decapsulator.decapsulate(encapsulator_cipher).unwrap();
+    group.bench_function(
+        "XWingDecapsulator + XWingEncapsulator: Generate+Encaps+Decaps",
+        |b| {
+            b.iter(|| {
+                let (decapsulator, decapsulator_public) = XWingDecapsulator::new(csprng).unwrap();
+                let encapsulator = XWingEncapsulator::new(decapsulator_public, csprng);
+                let (encapsulator_key, encapsulator_cipher) = encapsulator.encapsulate().unwrap();
+                let decapsulator_key = decapsulator.decapsulate(encapsulator_cipher).unwrap();
 
-            assert_eq!(encapsulator_key, decapsulator_key);
-        })
-    });
+                assert_eq!(encapsulator_key, decapsulator_key);
+            })
+        },
+    );
     group.bench_function("Deserialise+Serialise public key", |b| {
         let (_, public_key) = XWing::derive_key_pair(csprng).unwrap();
         b.iter(|| PublicKey::from_bytes(public_key.to_bytes()))
