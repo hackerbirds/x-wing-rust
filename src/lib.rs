@@ -76,6 +76,10 @@
 //! # }
 //! ```
 //!
+//! # Serializing/exporting secret values
+//! 
+//! If you must read/export the secret key and shared secrets, for instance in order to reuse them, you can use the `serialize_secret_key` and `serialize_shared_key` to serialize/deserialize SecretKey and SharedSecret into bytes. After that you are on your own, and you must make sure to handle those properly.
+//! 
 //! # Install
 //!
 //! Use `cargo`:

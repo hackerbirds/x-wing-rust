@@ -43,7 +43,7 @@ let encapsulator = XWingEncapsulator::new(server_public_key, csprng);
 let (encapsulator_shared_secret, encapsulator_cipher) = encapsulator.encapsulate()?;
 let server_shared_secret = server.decapsulate(encapsulator_cipher)?;
 
-assert_eq!(encapsulator_shared_secret, server_shared_secret);
+// encapsulator_shared_secret == server_shared_secret
 ```
 
 ### More general (but riskier) API 
@@ -61,8 +61,12 @@ let (secret_key_bob, pub_key_bob) = XWing::derive_key_pair(csprng)?;
 let (shared_secret_alice, cipher_alice) = XWing::encapsulate(csprng, pub_key_bob)?;
 let shared_secret_bob = XWing::decapsulate(cipher_alice, secret_key_bob)?;
 
-assert_eq!(shared_secret_alice, shared_secret_bob);
+// shared_secret_alice == shared_secret_bob
 ```
+
+# Serializing/exporting secret values
+
+If you must read/export the secret key and shared secrets, for instance in order to reuse them, you can use the `serialize_secret_key` and `serialize_shared_key` to serialize/deserialize SecretKey and SharedSecret into bytes. After that you are on your own, and you must make sure to handle those properly.
 
 # Install
 
