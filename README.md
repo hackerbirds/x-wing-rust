@@ -17,35 +17,35 @@ This library did not receive any audits, and the `ml-kem` crate we're using is n
 
 # Recommended usage
 
-The recommended usage is with `XWingServer` and `XWingClient`. Note that "server" and "client" are just terms to differentiate between who's starting the key exchange. `XWingServer` can very well be used by clients. 
+The recommended usage is with `XWingDecapsulator` and `XWingEncapsulator`.
 
-`XWingServer` is the party that generates the KEM secret and handles decapsulation while `XWingClient` generates the shared secret and handles the encapsulation using `XWingServer`'s public key.
+`XWingDecapsulator` is the party that generates the KEM secret and handles decapsulation while `XWingEncapsulator` generates the shared secret and handles the encapsulation using `XWingDecapsulator`'s public key.
 
 These structs make it difficult to Fuck Up™ because this library will do a best-effort attempt at preventing you from leaking the secret, and will safely zeroize everything after encapsulating and decapsulating.
 
 ```rust
-use x_wing::{XWingClient, XWingServer};
+use x_wing::{XWingEncapsulator, XWingDecapsulator};
 use rand::rngs::OsRng;
 
 let csprng = OsRng;
-let (server, server_public_key) = XWingServer::new(csprng)?;
-let client = XWingClient::new(server_public_key, csprng);
+let (decapsulator, decapsulator_public_key) = XWingDecapsulator::new(csprng)?;
+let encapsulator = XWingEncapsulator::new(decapsulator_public_key, csprng);
 
-let (client_shared_secret, client_cipher) = client.encapsulate()?;
-let server_shared_secret = server.decapsulate(client_cipher)?;
+let (encapsulator_shared_secret, encapsulator_cipher) = encapsulator.encapsulate()?;
+let decapsulator_shared_secret = decapsulator.decapsulate(encapsulator_cipher)?;
 
-assert_eq!(client_shared_secret, server_shared_secret);
+assert_eq!(encapsulator_shared_secret, decapsulator_shared_secret);
 ```
 
 ### More general (but riskier) API 
 
-If you don't want to use `XWingServer`/`XWingClient`, you may use `XWing` directly, and feed it the necessary secrets yourself:
+If you don't want to use `XWingDecapsulator`/`XWingEncapsulator`, you may use `XWing` directly, and feed it the necessary secrets yourself:
 
 ```rust
 use x_wing::XWing;
 use rand::rngs::OsRng;
 
-// In this example, Alice is the "client" and Bob is the "server". 
+// In this example, Alice is the "encapsulator" and Bob is the "decapsulator". 
 let csprng = OsRng;
 let (secret_key_bob, pub_key_bob) = XWing::derive_key_pair(csprng)?;
 
@@ -65,6 +65,6 @@ The crate in its current state will not be uploaded to crates.io because it simp
 
 # Design considerations
 
-This crate makes it difficult to accidentally leak/keep secrets/one-time values in memory. The structures will zeroize and drop all the secrets/one-time values after usage. You must consume `XWingClient`/`XWingServer` to encapsulate/decapsulate the values. If needed, secrets also implement a constant-time `PartialEq` through the `subtle` crate. 
+This crate makes it difficult to accidentally leak/keep secrets/one-time values in memory. The structures will zeroize and drop all the secrets/one-time values after usage. You must consume `XWingEncapsulator`/`XWingDecapsulator` to encapsulate/decapsulate the values. If needed, secrets also implement a constant-time `PartialEq` through the `subtle` crate. 
 
 Serializing/deserializing secret values is only permitted when activating non-default flags, and of course you should be aware of the risks when doing that. It might also be that `serde` does not do constant-time serialisation, so keep this in mind. However, `to_bytes()` is probably constant-time, but `from_bytes()` might not be because of deserialization errors if the input slice is too small.

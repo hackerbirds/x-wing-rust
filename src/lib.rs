@@ -17,9 +17,9 @@
 //! 
 //! # Recommended usage
 //! 
-//! The recommended usage is with [`XWingServer`] and [`XWingClient`]. Note that "server" and "client" are just terms to differentiate between who's starting the key exchange. [`XWingServer`] can very well be used by clients. 
+//! The recommended usage is with [`XWingDecapsulator`] and [`XWingEncapsulator`]. 
 //! 
-//! [`XWingServer`] is the party that generates the KEM secret and handles decapsulation while [`XWingClient`] generates the shared secret and handles the encapsulation using [`XWingServer`]'s public key.
+//! [`XWingDecapsulator`] is the party that generates the KEM secret and handles decapsulation while [`XWingEncapsulator`] generates the shared secret and handles the encapsulation using [`XWingDecapsulator`]'s public key.
 //! 
 //! These structs make it difficult to Fuck Up™ because this library will do a best-effort attempt at preventing you from leaking the secret, and will safely zeroize everything after encapsulating and decapsulating.
 //! 
@@ -27,17 +27,17 @@
 //! # use std::error::Error;
 //! #
 //! # fn main() -> Result<(), Box<dyn Error>> {
-//! use x_wing::{XWingClient, XWingServer};
+//! use x_wing::{XWingEncapsulator, XWingDecapsulator};
 //! use rand::rngs::OsRng;
 //! 
 //! let csprng = OsRng;
-//! let (server, server_public_key) = XWingServer::new(csprng)?;
-//! let client = XWingClient::new(server_public_key, csprng);
+//! let (decapsulator, decapsulator_public_key) = XWingDecapsulator::new(csprng)?;
+//! let encapsulator = XWingEncapsulator::new(decapsulator_public_key, csprng);
 //! 
-//! let (client_shared_secret, client_cipher) = client.encapsulate()?;
-//! let server_shared_secret = server.decapsulate(client_cipher)?;
+//! let (encapsulator_shared_secret, encapsulator_cipher) = encapsulator.encapsulate()?;
+//! let decapsulator_shared_secret = decapsulator.decapsulate(encapsulator_cipher)?;
 //! 
-//! assert_eq!(client_shared_secret, server_shared_secret);
+//! assert_eq!(encapsulator_shared_secret, decapsulator_shared_secret);
 //! #
 //! #     Ok(())
 //! # }
@@ -45,7 +45,7 @@
 //! 
 //! ### More general (but riskier) API 
 //! 
-//! If you don't want to use [`XWingServer`]/[`XWingClient`], you may use [`XWing`] directly, and feed it the necessary secrets yourself:
+//! If you don't want to use [`XWingDecapsulator`]/[`XWingEncapsulator`], you may use [`XWing`] directly, and feed it the necessary secrets yourself:
 //! 
 //! ```rust
 //! # use std::error::Error;
@@ -54,7 +54,7 @@
 //! use x_wing::XWing;
 //! use rand::rngs::OsRng;
 //! 
-//! // In this example, Alice is the "client" and Bob is the "server". 
+//! // In this example, Alice is the "encapsulator" and Bob is the "decapsulator". 
 //! let csprng = OsRng;
 //! let (secret_key_bob, pub_key_bob) = XWing::derive_key_pair(csprng)?;
 //! 
@@ -77,7 +77,7 @@
 //! 
 //! # Design considerations
 //! 
-//! This crate makes it difficult to accidentally leak/keep secrets/one-time values in memory. The structures will zeroize and drop all the secrets/one-time values after usage. You must consume [`XWingClient`]/[`XWingServer`] to encapsulate/decapsulate the values. If needed, secrets also implement a constant-time `PartialEq` through the `subtle` crate. 
+//! This crate makes it difficult to accidentally leak/keep secrets/one-time values in memory. The structures will zeroize and drop all the secrets/one-time values after usage. You must consume [`XWingEncapsulator`]/[`XWingDecapsulator`] to encapsulate/decapsulate the values. If needed, secrets also implement a constant-time `PartialEq` through the `subtle` crate. 
 //! 
 //! Serializing/deserializing secret values is only permitted when activating non-default flags, and of course you should be aware of the risks when doing that. It might also be that `serde` does not do constant-time serialisation, so keep this in mind. However, `to_bytes()` is probably constant-time, but `from_bytes()` might not be because of deserialization errors if the input slice is too small.
 
@@ -237,7 +237,7 @@ impl PartialEq for SharedSecret {
 
 /// The all-purpose API. Note that using this means you are handling with
 /// secrets and one-time values on your own, and you must do so carefully.
-/// For general purpose usage we highly recommend using [`XWingClient`] + [`XWingServer`]
+/// For general purpose usage we highly recommend using [`XWingEncapsulator`] + [`XWingDecapsulator`]
 /// instead.
 pub struct XWing;
 
@@ -310,8 +310,8 @@ impl XWing {
         Ok((secret, public))
     }
 
-    /// Generate and encapsulate a secret value (as the "client") into a [`Ciphertext`]
-    /// which should be sent to the other person (the "server").
+    /// Generate and encapsulate a secret value (as the "encapsulator") into a [`Ciphertext`]
+    /// which should be sent to the other person (the "decapsulator").
     /// Successful encapsulation will zeroize the public key.
     pub fn encapsulate<R: Rng + CryptoRng, Pk: AsMut<PublicKey>>(
         mut csprng: R,
@@ -387,8 +387,8 @@ impl XWing {
         Ok((shared_secret, ciphertext))
     }
 
-    /// Decapsulate a [`Ciphertext`] using the KEM's [`SecretKey`] (that the "server" has)
-    /// to retrieve [`SharedSecret`] sent by the "client"
+    /// Decapsulate a [`Ciphertext`] using the KEM's [`SecretKey`] (that the "decapsulator" has)
+    /// to retrieve [`SharedSecret`] sent by the "encapsulator"
     /// Successful decapuslation will zeroize the secret key and ciphertext.
     pub fn decapsulate<Ct: AsMut<Ciphertext>, Sk: AsMut<SecretKey>>(
         mut cipher: Ct,
@@ -537,9 +537,9 @@ impl SharedSecret {
     }
 }
 
-/// The "server" portion of XWing. The "server" is
+/// The "decapsulator" portion of XWing. The "decapsulator" is
 /// whoever shares their public key to the other person
-/// (the "client") and decapsulates their ciphertext.
+/// (the "encapsulator") and decapsulates their ciphertext.
 ///
 /// Here is a basic usage:
 /// ```rust
@@ -550,23 +550,23 @@ impl SharedSecret {
 /// use x_wing::*;
 ///
 /// let csprng = OsRng;
-/// let (server, server_public_key) = XWingServer::new(csprng)?;
-/// let client = XWingClient::new(server_public_key, csprng);
+/// let (decapsulator, decapsulator_public_key) = XWingDecapsulator::new(csprng)?;
+/// let encapsulator = XWingEncapsulator::new(decapsulator_public_key, csprng);
 ///
-/// let (client_shared_secret, client_cipher) = client.encapsulate()?;
-/// let server_shared_secret = server.decapsulate(client_cipher)?;
-/// assert_eq!(client_shared_secret, server_shared_secret);
+/// let (encapsulator_shared_secret, encapsulator_cipher) = encapsulator.encapsulate()?;
+/// let decapsulator_shared_secret = decapsulator.decapsulate(encapsulator_cipher)?;
+/// assert_eq!(encapsulator_shared_secret, decapsulator_shared_secret);
 /// #
 /// #     Ok(())
 /// # }
 /// ```
 #[derive(Zeroize, ZeroizeOnDrop)]
-pub struct XWingServer {
+pub struct XWingDecapsulator {
     secret: Box<SecretKey>,
 }
 
-impl XWingServer {
-    /// Initialise the server. It is crucial that `csprng` is *cryptographically secure*.
+impl XWingDecapsulator {
+    /// Initialise the decapsulator. It is crucial that `csprng` is *cryptographically secure*.
     /// You may use [`rand::rngs::OsRng`] under the (generally safe) assumption that all operating systems
     /// provide a cryptographically secure PRNG.
     ///
@@ -579,7 +579,7 @@ impl XWingServer {
     /// use x_wing::*;
     ///
     /// let csprng = OsRng;
-    /// let (server, server_public_key) = XWingServer::new(csprng)?;
+    /// let (decapsulator, decapsulator_public_key) = XWingDecapsulator::new(csprng)?;
     /// #
     /// #     Ok(())
     /// # }
@@ -595,9 +595,9 @@ impl XWingServer {
         ))
     }
 
-    /// Decapsulate a [`Ciphertext`] generated by a "client"
+    /// Decapsulate a [`Ciphertext`] generated by a "encapsulator"
     /// and retrieve the [`SharedSecret`]. Note that this call
-    /// consumes [`XWingServer`], and you will no longer be able
+    /// consumes [`XWingDecapsulator`], and you will no longer be able
     /// to use it afterward
     /// Usage:
     /// ```rust
@@ -608,13 +608,13 @@ impl XWingServer {
     /// use x_wing::*;
     /// // stuff...
     /// let csprng = OsRng;
-    /// let (server, server_public_key) = XWingServer::new(csprng)?;
-    /// let client = XWingClient::new(server_public_key, csprng);
-    /// // Client generates ciphertext
-    /// let (_, client_cipher) = client.encapsulate()?;
-    /// // Ciphertext gets sent to server and decapsulates it...
-    /// let shared_secret = server.decapsulate(client_cipher)?;
-    /// // After this point, `server` is dropped and no longer exists
+    /// let (decapsulator, decapsulator_public_key) = XWingDecapsulator::new(csprng)?;
+    /// let encapsulator = XWingEncapsulator::new(decapsulator_public_key, csprng);
+    /// // encapsulator generates ciphertext
+    /// let (_, encapsulator_cipher) = encapsulator.encapsulate()?;
+    /// // Ciphertext gets sent to decapsulator and decapsulates it...
+    /// let shared_secret = decapsulator.decapsulate(encapsulator_cipher)?;
+    /// // After this point, `decapsulator` is dropped and no longer exists
     /// #
     /// #     Ok(())
     /// # }
@@ -625,9 +625,9 @@ impl XWingServer {
     }
 }
 
-/// The "client" portion of XWing. The "client" is
+/// The "encapsulator" portion of XWing. The "encapsulator" is
 /// whoever encapsulates a generated shared secret with
-/// the other person (the "server").
+/// the other person (the "decapsulator").
 ///
 /// Here is a basic usage:
 /// ```
@@ -638,25 +638,25 @@ impl XWingServer {
 /// use x_wing::*;
 ///
 /// let csprng = OsRng;
-/// let (server, server_public_key) = XWingServer::new(csprng)?;
-/// let client = XWingClient::new(server_public_key, csprng);
+/// let (decapsulator, decapsulator_public_key) = XWingDecapsulator::new(csprng)?;
+/// let encapsulator = XWingEncapsulator::new(decapsulator_public_key, csprng);
 ///
-/// let (client_shared_secret, client_cipher) = client.encapsulate()?;
-/// let server_shared_secret = server.decapsulate(client_cipher)?;
-/// assert_eq!(client_shared_secret, server_shared_secret);
+/// let (encapsulator_shared_secret, encapsulator_cipher) = encapsulator.encapsulate()?;
+/// let decapsulator_shared_secret = decapsulator.decapsulate(encapsulator_cipher)?;
+/// assert_eq!(encapsulator_shared_secret, decapsulator_shared_secret);
 /// #
 /// #     Ok(())
 /// # }
 /// ```
 #[derive(Zeroize, ZeroizeOnDrop)]
-pub struct XWingClient<R: Rng + CryptoRng> {
-    pub server_public: Box<PublicKey>,
+pub struct XWingEncapsulator<R: Rng + CryptoRng> {
+    pub decapsulator_public: Box<PublicKey>,
     #[zeroize(skip)]
     csprng: R,
 }
 
-impl<R: Rng + CryptoRng> XWingClient<R> {
-    /// Initialise the client. It is crucial that `csprng` is *cryptographically secure*.
+impl<R: Rng + CryptoRng> XWingEncapsulator<R> {
+    /// Initialise the encapsulator. It is crucial that `csprng` is *cryptographically secure*.
     /// You may use `rand`'s `OsRng` under the (generally safe) assumption that all operating systems
     /// provide a cryptographically secure PRNG.
     ///
@@ -669,25 +669,25 @@ impl<R: Rng + CryptoRng> XWingClient<R> {
     /// use x_wing::*;
     ///
     /// let csprng = OsRng;
-    /// let (server, server_public_key) = XWingServer::new(csprng)?;
+    /// let (decapsulator, decapsulator_public_key) = XWingDecapsulator::new(csprng)?;
     /// // ...
-    /// let client = XWingClient::new(server_public_key, csprng);
+    /// let encapsulator = XWingEncapsulator::new(decapsulator_public_key, csprng);
     /// #
     /// #     Ok(())
     /// # }
     /// ```
-    pub fn new<Pk: Into<PublicKey>>(server_public: Pk, csprng: R) -> Self {
+    pub fn new<Pk: Into<PublicKey>>(decapsulator_public: Pk, csprng: R) -> Self {
         Self {
-            server_public: Box::new(server_public.into()),
+            decapsulator_public: Box::new(decapsulator_public.into()),
             csprng,
         }
     }
 
-    /// Generate a shared secret, and encapsulate it with the server's public key.
-    /// The [`SharedSecret`] should be kept secret and the [`Ciphertext`] should be sent to the server.
+    /// Generate a shared secret, and encapsulate it with the decapsulator's public key.
+    /// The [`SharedSecret`] should be kept secret and the [`Ciphertext`] should be sent to the decapsulator.
     pub fn encapsulate(mut self) -> Result<(SharedSecret, Ciphertext), Error> {
         // NOTE: XWing::encapsulate will use zeroize() on the public key after it's done
-        XWing::encapsulate(&mut self.csprng, &mut self.server_public)
+        XWing::encapsulate(&mut self.csprng, &mut self.decapsulator_public)
     }
 }
 
@@ -698,19 +698,19 @@ mod tests {
     use rand::rngs::OsRng;
 
     #[test]
-    fn client_and_server() {
+    fn encapsulator_and_decapsulator() {
         let csprng = OsRng;
-        let (server, server_public_key) =
-            XWingServer::new(csprng).expect("XWingServer should generate keys successfully");
-        let client = XWingClient::new(server_public_key, csprng);
+        let (decapsulator, decapsulator_public_key) =
+            XWingDecapsulator::new(csprng).expect("XWingDecapsulator should generate keys successfully");
+        let encapsulator = XWingEncapsulator::new(decapsulator_public_key, csprng);
 
-        let (client_shared_secret, client_cipher) =
-            client.encapsulate().expect("honest encapsulation works");
-        let server_shared_secret = server
-            .decapsulate(client_cipher)
+        let (encapsulator_shared_secret, encapsulator_cipher) =
+            encapsulator.encapsulate().expect("honest encapsulation works");
+        let decapsulator_shared_secret = decapsulator
+            .decapsulate(encapsulator_cipher)
             .expect("honest decapsulation works");
 
-        assert_eq!(client_shared_secret, server_shared_secret);
+        assert_eq!(encapsulator_shared_secret, decapsulator_shared_secret);
     }
 
     #[test]

@@ -1,6 +1,6 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use rand::rngs::OsRng;
-use x_wing::{Ciphertext, PublicKey, XWing, XWingClient, XWingServer};
+use x_wing::{Ciphertext, PublicKey, XWing, XWingEncapsulator, XWingDecapsulator};
 
 pub fn criterion_benchmark(c: &mut Criterion) {
     let csprng = OsRng;
@@ -41,46 +41,46 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         })
     });
     group.bench_function(
-        "XWingServer + XWingclient: Generate+Encaps+Decaps with PK+CT serialization roundtrip",
+        "XWingDecapsulator + XWingEncapsulator: Generate+Encaps+Decaps with PK+CT serialization roundtrip",
         |b| {
             b.iter(|| {
-                let (server, server_public) = XWingServer::new(csprng).unwrap();
-                let client = XWingClient::new(
-                    PublicKey::from_bytes(server_public.to_bytes()).unwrap(),
+                let (decapsulator, decapsulator_public) = XWingDecapsulator::new(csprng).unwrap();
+                let encapsulator = XWingEncapsulator::new(
+                    PublicKey::from_bytes(decapsulator_public.to_bytes()).unwrap(),
                     csprng,
                 );
-                let (client_key, client_cipher) = client.encapsulate().unwrap();
-                let server_key = server
-                    .decapsulate(Ciphertext::from_bytes(client_cipher.to_bytes()).unwrap())
+                let (encapsulator_key, encapsulator_cipher) = encapsulator.encapsulate().unwrap();
+                let decapsulator_key = decapsulator
+                    .decapsulate(Ciphertext::from_bytes(encapsulator_cipher.to_bytes()).unwrap())
                     .unwrap();
 
-                assert_eq!(client_key, server_key);
+                assert_eq!(encapsulator_key, decapsulator_key);
             })
         },
     );
     group.bench_function(
-        "XWingServer + XWingclient: Generate+Encaps+Decaps with CT-only serialization roundtrip",
+        "XWingDecapsulator + XWingEncapsulator: Generate+Encaps+Decaps with CT-only serialization roundtrip",
         |b| {
             b.iter(|| {
-                let (server, server_public) = XWingServer::new(csprng).unwrap();
-                let client = XWingClient::new(server_public, csprng);
-                let (client_key, client_cipher) = client.encapsulate().unwrap();
-                let server_key = server
-                    .decapsulate(Ciphertext::from_bytes(client_cipher.to_bytes()).unwrap())
+                let (decapsulator, decapsulator_public) = XWingDecapsulator::new(csprng).unwrap();
+                let encapsulator = XWingEncapsulator::new(decapsulator_public, csprng);
+                let (encapsulator_key, encapsulator_cipher) = encapsulator.encapsulate().unwrap();
+                let decapsulator_key = decapsulator
+                    .decapsulate(Ciphertext::from_bytes(encapsulator_cipher.to_bytes()).unwrap())
                     .unwrap();
 
-                assert_eq!(client_key, server_key);
+                assert_eq!(encapsulator_key, decapsulator_key);
             })
         },
     );
-    group.bench_function("XWingServer + XWingclient: Generate+Encaps+Decaps", |b| {
+    group.bench_function("XWingDecapsulator + XWingEncapsulator: Generate+Encaps+Decaps", |b| {
         b.iter(|| {
-            let (server, server_public) = XWingServer::new(csprng).unwrap();
-            let client = XWingClient::new(server_public, csprng);
-            let (client_key, client_cipher) = client.encapsulate().unwrap();
-            let server_key = server.decapsulate(client_cipher).unwrap();
+            let (decapsulator, decapsulator_public) = XWingDecapsulator::new(csprng).unwrap();
+            let encapsulator = XWingEncapsulator::new(decapsulator_public, csprng);
+            let (encapsulator_key, encapsulator_cipher) = encapsulator.encapsulate().unwrap();
+            let decapsulator_key = decapsulator.decapsulate(encapsulator_cipher).unwrap();
 
-            assert_eq!(client_key, server_key);
+            assert_eq!(encapsulator_key, decapsulator_key);
         })
     });
     group.bench_function("Deserialise+Serialise public key", |b| {
