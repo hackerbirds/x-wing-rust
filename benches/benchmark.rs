@@ -14,19 +14,17 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             b.iter(|| {
                 let (secret_key_bob, pub_key_bob) = XWing::derive_key_pair(csprng).unwrap();
 
-                let (shared_key_alice, cipher_alice) = XWing::encapsulate(
+                let (_shared_key_alice, cipher_alice) = XWing::encapsulate(
                     csprng,
                     PublicKey::from_bytes(pub_key_bob.to_bytes()).unwrap(),
                 )
                 .unwrap();
 
-                let shared_key_bob = XWing::decapsulate(
+                let _shared_key_bob = XWing::decapsulate(
                     Ciphertext::from_bytes(cipher_alice.to_bytes()).unwrap(),
                     secret_key_bob,
                 )
                 .unwrap();
-
-                assert_eq!(shared_key_alice, shared_key_bob);
             })
         },
     );
@@ -34,10 +32,8 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         b.iter(|| {
             let (secret_key_bob, pub_key_bob) = XWing::derive_key_pair(csprng).unwrap();
 
-            let (shared_key_alice, cipher_alice) = XWing::encapsulate(csprng, pub_key_bob).unwrap();
-            let shared_key_bob = XWing::decapsulate(cipher_alice, secret_key_bob).unwrap();
-
-            assert_eq!(shared_key_alice, shared_key_bob);
+            let (_shared_key_alice, cipher_alice) = XWing::encapsulate(csprng, pub_key_bob).unwrap();
+            let _shared_key_bob = XWing::decapsulate(cipher_alice, secret_key_bob).unwrap();
         })
     });
     group.bench_function(
@@ -49,12 +45,10 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                     PublicKey::from_bytes(decapsulator_public.to_bytes()).unwrap(),
                     csprng,
                 );
-                let (encapsulator_key, encapsulator_cipher) = encapsulator.encapsulate().unwrap();
-                let decapsulator_key = decapsulator
+                let (_encapsulator_key, encapsulator_cipher) = encapsulator.encapsulate().unwrap();
+                let _decapsulator_key = decapsulator
                     .decapsulate(Ciphertext::from_bytes(encapsulator_cipher.to_bytes()).unwrap())
                     .unwrap();
-
-                assert_eq!(encapsulator_key, decapsulator_key);
             })
         },
     );
@@ -64,12 +58,10 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             b.iter(|| {
                 let (decapsulator, decapsulator_public) = XWingDecapsulator::new(csprng).unwrap();
                 let encapsulator = XWingEncapsulator::new(decapsulator_public, csprng);
-                let (encapsulator_key, encapsulator_cipher) = encapsulator.encapsulate().unwrap();
-                let decapsulator_key = decapsulator
+                let (_encapsulator_key, encapsulator_cipher) = encapsulator.encapsulate().unwrap();
+                let _decapsulator_key = decapsulator
                     .decapsulate(Ciphertext::from_bytes(encapsulator_cipher.to_bytes()).unwrap())
                     .unwrap();
-
-                assert_eq!(encapsulator_key, decapsulator_key);
             })
         },
     );
@@ -79,20 +71,18 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             b.iter(|| {
                 let (decapsulator, decapsulator_public) = XWingDecapsulator::new(csprng).unwrap();
                 let encapsulator = XWingEncapsulator::new(decapsulator_public, csprng);
-                let (encapsulator_key, encapsulator_cipher) = encapsulator.encapsulate().unwrap();
-                let decapsulator_key = decapsulator.decapsulate(encapsulator_cipher).unwrap();
-
-                assert_eq!(encapsulator_key, decapsulator_key);
+                let (_encapsulator_key, encapsulator_cipher) = encapsulator.encapsulate().unwrap();
+                let _decapsulator_key = decapsulator.decapsulate(encapsulator_cipher).unwrap();
             })
         },
     );
     group.bench_function("Deserialise+Serialise public key", |b| {
-        let (_, public_key) = XWing::derive_key_pair(csprng).unwrap();
+        let (_secret_key, public_key) = XWing::derive_key_pair(csprng).unwrap();
         b.iter(|| PublicKey::from_bytes(public_key.to_bytes()))
     });
     group.bench_function("Deserialise+Serialise ciphertext", |b| {
-        let (_, public_key) = XWing::derive_key_pair(csprng).unwrap();
-        let (_, cipher) = XWing::encapsulate(csprng, public_key).unwrap();
+        let (_secret_key, public_key) = XWing::derive_key_pair(csprng).unwrap();
+        let (_shared_secret, cipher) = XWing::encapsulate(csprng, public_key).unwrap();
         b.iter(|| Ciphertext::from_bytes(cipher.to_bytes()))
     });
     group.finish();

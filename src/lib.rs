@@ -11,13 +11,13 @@
 //!
 //! ## Security
 //!
-//! The safety of the implementation of this crate mainly depends:
-//!
-//! - The implementation of the `ml-kem` and `x25519-dalek`, which we don't control.
-//! - The randomness of the cryptographic RNG used (usually `OsRng`), which is up to the operating system.
-//!
-//! Beyond that, we try to make sure that all secret values are handled in constant time, and are zeroized from memory after being used/dropped.
-//!
+//! The safety of the implementation of this crate mainly depends: 
+//! 
+//!  - The implementation of the `ml-kem` and `x25519-dalek`, and their constant-time operations, which we don't control. 
+//!  - The randomness of the cryptographic RNG used (usually `OsRng`), which is up to the operating system.
+//! 
+//! Beyond that, we try to make sure that all secret values cannot be handled in an unsafe way, and by default are zeroized from memory after being used/dropped. 
+//! 
 //! ## This library is not production ready
 //!
 //! This library did not receive any audits, and the `ml-kem` crate we're using is not yet stable, and you should not use this in any production setting.
@@ -46,7 +46,7 @@
 //! let (encapsulator_shared_secret, encapsulator_cipher) = encapsulator.encapsulate()?;
 //! let decapsulator_shared_secret = decapsulator.decapsulate(encapsulator_cipher)?;
 //!
-//! assert_eq!(encapsulator_shared_secret, decapsulator_shared_secret);
+//! // encapsulator_shared_secret == decapsulator_shared_secret
 //! #
 //! #     Ok(())
 //! # }
@@ -70,7 +70,7 @@
 //! let (shared_secret_alice, cipher_alice) = XWing::encapsulate(csprng, pub_key_bob)?;
 //! let shared_secret_bob = XWing::decapsulate(cipher_alice, secret_key_bob)?;
 //!
-//! assert_eq!(shared_secret_alice, shared_secret_bob);
+//! // shared_secret_alice == shared_secret_bob
 //! #
 //! #     Ok(())
 //! # }
@@ -91,12 +91,13 @@ use ml_kem::{
     Decapsulate, Encapsulate, EncodedSizeUser, KemCore, MlKem768, MlKem768Params,
 };
 use rand::{CryptoRng, Rng};
-use serde::{Deserialize, Serialize};
 use sha3::{Digest, Sha3_256};
 use std::fmt::Debug;
-use subtle::ConstantTimeEq;
 use thiserror::Error;
 use x25519_dalek::{PublicKey as X25519PublicKey, StaticSecret as X25519SecretKey};
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+#[cfg(feature = "zeroize")]
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 #[derive(Error, Debug)]
@@ -146,7 +147,7 @@ const X_WING_LABEL: &[u8] = b"\\.//^\\";
     all(feature = "serde", feature = "serialize_secret_key"),
     derive(Serialize, Deserialize)
 )]
-#[derive(Zeroize, ZeroizeOnDrop)]
+#[cfg_attr(feature = "zeroize", derive(Zeroize, ZeroizeOnDrop))]
 pub struct SecretKey {
     #[cfg_attr(
         all(feature = "serde", feature = "serialize_secret_key"),
@@ -164,7 +165,8 @@ impl AsMut<SecretKey> for SecretKey {
 }
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Debug, Clone, Zeroize, ZeroizeOnDrop)]
+#[cfg_attr(feature = "zeroize", derive(Zeroize))]
+#[derive(Debug, PartialEq, Clone)]
 pub struct PublicKey {
     #[cfg_attr(feature = "serde", serde(with = "serde_arrays"))]
     ml_kem_public: [u8; ML_KEM_768_PUBLIC_KEY_BYTES_LENGTH],
@@ -177,24 +179,9 @@ impl AsMut<PublicKey> for PublicKey {
     }
 }
 
-impl ConstantTimeEq for PublicKey {
-    fn ct_eq(&self, other: &Self) -> subtle::Choice {
-        self.ml_kem_public.ct_eq(&other.ml_kem_public)
-            & self
-                .x25519_public
-                .as_bytes()
-                .ct_eq(other.x25519_public.as_bytes())
-    }
-}
-
-impl PartialEq for PublicKey {
-    fn eq(&self, other: &Self) -> bool {
-        bool::from(self.ct_eq(other))
-    }
-}
-
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Debug, Zeroize, ZeroizeOnDrop)]
+#[cfg_attr(feature = "zeroize", derive(Zeroize))]
+#[derive(Debug, PartialEq)]
 pub struct Ciphertext {
     #[cfg_attr(feature = "serde", serde(with = "serde_arrays"))]
     ml_kem_cipher: [u8; ML_KEM_768_CIPHERTEXT_BYTES_LENGTH],
@@ -207,37 +194,9 @@ impl AsMut<Ciphertext> for Ciphertext {
     }
 }
 
-impl ConstantTimeEq for Ciphertext {
-    fn ct_eq(&self, other: &Self) -> subtle::Choice {
-        self.ml_kem_cipher.ct_eq(&other.ml_kem_cipher)
-            & self
-                .x25519_cipher
-                .as_bytes()
-                .ct_eq(other.x25519_cipher.as_bytes())
-    }
-}
-
-impl PartialEq for Ciphertext {
-    fn eq(&self, other: &Self) -> bool {
-        bool::from(self.ct_eq(other))
-    }
-}
-
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Debug, Zeroize, ZeroizeOnDrop)]
+#[cfg_attr(feature = "zeroize", derive(Zeroize, ZeroizeOnDrop))]
 pub struct SharedSecret([u8; XWING_SHARED_SECRET_BYTES_LENGTH]);
-
-impl ConstantTimeEq for SharedSecret {
-    fn ct_eq(&self, other: &Self) -> subtle::Choice {
-        self.0.ct_eq(&other.0)
-    }
-}
-
-impl PartialEq for SharedSecret {
-    fn eq(&self, other: &Self) -> bool {
-        bool::from(self.ct_eq(other))
-    }
-}
 
 /// The all-purpose API. Note that using this means you are handling with
 /// secrets and one-time values on your own, and you must do so carefully.
@@ -316,7 +275,6 @@ impl XWing {
 
     /// Generate and encapsulate a secret value (as the "encapsulator") into a [`Ciphertext`]
     /// which should be sent to the other person (the "decapsulator").
-    /// Successful encapsulation will zeroize the public key.
     pub fn encapsulate<R: Rng + CryptoRng, Pk: AsMut<PublicKey>>(
         mut csprng: R,
         mut public_key: Pk,
@@ -346,6 +304,7 @@ impl XWing {
         };
 
         // Zeroize public key from memory when we're done
+        #[cfg(feature = "zeroize")]
         pk.zeroize();
 
         Ok((shared_secret, ciphertext))
@@ -385,9 +344,6 @@ impl XWing {
             x25519_cipher,
         };
 
-        // Zeroize public key from memory when we're done
-        pk.zeroize();
-
         Ok((shared_secret, ciphertext))
     }
 
@@ -417,8 +373,8 @@ impl XWing {
             &sk.x25519_public,
         );
 
-        // Zeroize cipher and secret key
-        ct.zeroize();
+        // Zeroize secret key
+        #[cfg(feature = "zeroize")]
         sk.zeroize();
 
         Ok(shared_secret)
@@ -558,12 +514,12 @@ impl SharedSecret {
 ///
 /// let (encapsulator_shared_secret, encapsulator_cipher) = encapsulator.encapsulate()?;
 /// let decapsulator_shared_secret = decapsulator.decapsulate(encapsulator_cipher)?;
-/// assert_eq!(encapsulator_shared_secret, decapsulator_shared_secret);
+/// // encapsulator_shared_secret == decapsulator_shared_secret
 /// #
 /// #     Ok(())
 /// # }
 /// ```
-#[derive(Zeroize, ZeroizeOnDrop)]
+#[cfg_attr(feature = "zeroize", derive(Zeroize, ZeroizeOnDrop))]
 pub struct XWingDecapsulator {
     secret: Box<SecretKey>,
 }
@@ -646,15 +602,15 @@ impl XWingDecapsulator {
 ///
 /// let (encapsulator_shared_secret, encapsulator_cipher) = encapsulator.encapsulate()?;
 /// let decapsulator_shared_secret = decapsulator.decapsulate(encapsulator_cipher)?;
-/// assert_eq!(encapsulator_shared_secret, decapsulator_shared_secret);
+/// // encapsulator_shared_secret == decapsulator_shared_secret
 /// #
 /// #     Ok(())
 /// # }
 /// ```
-#[derive(Zeroize, ZeroizeOnDrop)]
+#[cfg_attr(feature = "zeroize", derive(Zeroize, ZeroizeOnDrop))]
 pub struct XWingEncapsulator<R: Rng + CryptoRng> {
     pub decapsulator_public: Box<PublicKey>,
-    #[zeroize(skip)]
+    #[cfg_attr(feature = "zeroize", zeroize(skip))]
     csprng: R,
 }
 
@@ -714,7 +670,7 @@ mod tests {
             .decapsulate(encapsulator_cipher)
             .expect("honest decapsulation works");
 
-        assert_eq!(encapsulator_shared_secret, decapsulator_shared_secret);
+        assert_eq!(encapsulator_shared_secret.0, decapsulator_shared_secret.0);
     }
 
     #[test]
@@ -728,7 +684,7 @@ mod tests {
         let shared_secret_bob =
             XWing::decapsulate(cipher_alice, secret_key_bob).expect("honest decapsulation works");
 
-        assert_eq!(shared_secret_alice, shared_secret_bob);
+        assert_eq!(shared_secret_alice.0, shared_secret_bob.0);
     }
 
     fn test_vectors_gen(
@@ -899,7 +855,7 @@ mod tests {
 
         // Roundtrip
         let other_shared_secret = SharedSecret::from_bytes(shared_secret.to_bytes());
-        assert_eq!(shared_secret, other_shared_secret);
+        assert_eq!(shared_secret.0, other_shared_secret.0);
     }
 
     #[test]
