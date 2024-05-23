@@ -14,7 +14,7 @@ The X-Wing paper which includes the IND-CCA security proof is at https://eprint.
 The safety of the implementation of this crate mainly depends: 
 
  - The implementation of the `ml-kem` and `x25519-dalek`, and their constant-time operations, which we don't control. 
- - The randomness of the cryptographic RNG used (usually `OsRng`), which is up to the operating system.
+ - The randomness of the cryptographic RNG used (typically `OsRng`, which is up to the operating system).
 
 Beyond that, we try to make sure that all secret values cannot be handled in an unsafe way, and by default are zeroized from memory after being used/dropped. 
 
