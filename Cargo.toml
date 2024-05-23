@@ -8,7 +8,7 @@ description = "An implementation of X-Wing written for fun purposes. Do not use 
 repository = "https://github.com/hackerbirds/x-wing-rust"
 
 [dependencies]
-ml-kem = { version = "0.1.0", features = ["deterministic"] }
+ml-kem = "0.1.0"
 sha3 = "0.10.8"
 x25519-dalek = { version = "2", features = ["static_secrets", "zeroize"] }
 serde = { version = "1", optional = true }
@@ -27,6 +27,7 @@ serialize_secret_key = []
 serialize_shared_key = []
 
 [dev-dependencies]
+ml-kem = { version = "0.1.0", features = ["deterministic"] }
 hex-literal = "0.4.1"
 criterion = "0.5"
 rand = "0.8.5"
