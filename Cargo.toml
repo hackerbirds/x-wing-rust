@@ -10,12 +10,12 @@ repository = "https://github.com/hackerbirds/x-wing-rust"
 [dependencies]
 thiserror = "1.0"
 ml-kem = { version = "0.1.0", features = ["deterministic"] }
-rand = "0.8.5"
 sha3 = "0.10.8"
 x25519-dalek = { version = "2", features = ["static_secrets", "zeroize"] }
 serde = { version = "1", optional = true }
 serde_arrays = { version = "0.1.0", optional = true }
 zeroize = { version = "1.7", features = ["alloc"], optional = true }
+rand_core = "0.6.4"
 
 [features]
 default = ["serde", "zeroize"]
@@ -30,6 +30,7 @@ serialize_shared_key = []
 [dev-dependencies]
 hex-literal = "0.4.1"
 criterion = "0.5"
+rand = "0.8.5"
 
 [[bench]]
 name = "benchmark"

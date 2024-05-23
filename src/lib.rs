@@ -11,13 +11,13 @@
 //!
 //! ## Security
 //!
-//! The safety of the implementation of this crate mainly depends: 
-//! 
-//!  - The implementation of the `ml-kem` and `x25519-dalek`, and their constant-time operations, which we don't control. 
+//! The safety of the implementation of this crate mainly depends:
+//!
+//!  - The implementation of the `ml-kem` and `x25519-dalek`, and their constant-time operations, which we don't control.
 //!  - The randomness of the cryptographic RNG used (usually `OsRng`), which is up to the operating system.
-//! 
-//! Beyond that, we try to make sure that all secret values cannot be handled in an unsafe way, and by default are zeroized from memory after being used/dropped. 
-//! 
+//!
+//! Beyond that, we try to make sure that all secret values cannot be handled in an unsafe way, and by default are zeroized from memory after being used/dropped.
+//!
 //! ## This library is not production ready
 //!
 //! This library did not receive any audits, and the `ml-kem` crate we're using is not yet stable, and you should not use this in any production setting.
@@ -77,9 +77,9 @@
 //! ```
 //!
 //! # Serializing/exporting secret values
-//! 
+//!
 //! If you must read/export the secret key and shared secrets, for instance in order to reuse them, you can use the `serialize_secret_key` and `serialize_shared_key` to serialize/deserialize SecretKey and SharedSecret into bytes. After that you are on your own, and you must make sure to handle those properly.
-//! 
+//!
 //! # Install
 //!
 //! Use `cargo`:
@@ -94,13 +94,13 @@ use ml_kem::{
     kem::{DecapsulationKey, EncapsulationKey},
     Decapsulate, Encapsulate, EncodedSizeUser, KemCore, MlKem768, MlKem768Params,
 };
-use rand::{CryptoRng, Rng};
+use rand_core::CryptoRngCore;
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 use sha3::{Digest, Sha3_256};
 use std::fmt::Debug;
 use thiserror::Error;
 use x25519_dalek::{PublicKey as X25519PublicKey, StaticSecret as X25519SecretKey};
-#[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
 #[cfg(feature = "zeroize")]
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
@@ -256,8 +256,8 @@ impl XWing {
     }
 
     /// Generate a secret key and public key.
-    pub fn derive_key_pair<R: Rng + CryptoRng>(
-        mut csprng: R,
+    pub fn derive_key_pair<Rng: CryptoRngCore>(
+        mut csprng: Rng,
     ) -> Result<(SecretKey, PublicKey), Error> {
         let (ml_kem_secret, ml_kem_public) = MlKem768::generate(&mut csprng);
         let x25519_secret = X25519SecretKey::random_from_rng(&mut csprng);
@@ -279,8 +279,8 @@ impl XWing {
 
     /// Generate and encapsulate a secret value (as the "encapsulator") into a [`Ciphertext`]
     /// which should be sent to the other person (the "decapsulator").
-    pub fn encapsulate<R: Rng + CryptoRng, Pk: AsMut<PublicKey>>(
-        mut csprng: R,
+    pub fn encapsulate<Rng: CryptoRngCore, Pk: AsMut<PublicKey>>(
+        mut csprng: Rng,
         mut public_key: Pk,
     ) -> Result<(SharedSecret, Ciphertext), Error> {
         let pk = public_key.as_mut();
@@ -547,7 +547,7 @@ impl XWingDecapsulator {
     /// #     Ok(())
     /// # }
     /// ```
-    pub fn new<R: Rng + CryptoRng>(csprng: R) -> Result<(Self, PublicKey), Error> {
+    pub fn new<Rng: CryptoRngCore>(csprng: Rng) -> Result<(Self, PublicKey), Error> {
         let (secret, public) = XWing::derive_key_pair(csprng)?;
 
         Ok((
@@ -612,13 +612,13 @@ impl XWingDecapsulator {
 /// # }
 /// ```
 #[cfg_attr(feature = "zeroize", derive(Zeroize, ZeroizeOnDrop))]
-pub struct XWingEncapsulator<R: Rng + CryptoRng> {
+pub struct XWingEncapsulator<Rng: CryptoRngCore> {
     pub decapsulator_public: Box<PublicKey>,
     #[cfg_attr(feature = "zeroize", zeroize(skip))]
-    csprng: R,
+    csprng: Rng,
 }
 
-impl<R: Rng + CryptoRng> XWingEncapsulator<R> {
+impl<Rng: CryptoRngCore> XWingEncapsulator<Rng> {
     /// Initialise the encapsulator. It is crucial that `csprng` is *cryptographically secure*.
     /// You may use `rand`'s `OsRng` under the (generally safe) assumption that all operating systems
     /// provide a cryptographically secure PRNG.
@@ -639,7 +639,7 @@ impl<R: Rng + CryptoRng> XWingEncapsulator<R> {
     /// #     Ok(())
     /// # }
     /// ```
-    pub fn new<Pk: Into<PublicKey>>(decapsulator_public: Pk, csprng: R) -> Self {
+    pub fn new<Pk: Into<PublicKey>>(decapsulator_public: Pk, csprng: Rng) -> Self {
         Self {
             decapsulator_public: Box::new(decapsulator_public.into()),
             csprng,
