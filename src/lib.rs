@@ -99,19 +99,27 @@ use rand_core::CryptoRngCore;
 use serde::{Deserialize, Serialize};
 use sha3::{Digest, Sha3_256};
 use std::fmt::Debug;
-use thiserror::Error;
 use x25519_dalek::{PublicKey as X25519PublicKey, StaticSecret as X25519SecretKey};
 #[cfg(feature = "zeroize")]
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
-#[derive(Error, Debug)]
+#[derive(Debug)]
 pub enum Error {
-    #[error("Unexpected data when serialising")]
-    SerialiseError,
-    #[error("Unexpected data when deserialising")]
-    DeserialiseError,
-    #[error("ML-KEM unexpectedly failed")]
+    SerializeError,
+    DeserializeError,
     MlKemError,
+}
+
+impl std::error::Error for Error {}
+
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Error::SerializeError => write!(f, "Serialization error"),
+            Error::DeserializeError => write!(f, "Deserialization error"),
+            Error::MlKemError => write!(f, "ML-KEM error"),
+        }
+    }
 }
 
 // NOTE: ML-KEM is not finalised and thus these values can change
@@ -390,12 +398,12 @@ impl SecretKey {
     pub fn from_bytes(bytes: XWingSecretKey) -> Result<Self, Error> {
         let ml_kem_secret = bytes[0..ML_KEM_768_SECRET_KEY_BYTES_LENGTH]
             .try_into()
-            .map_err(|_| Error::DeserialiseError)?;
+            .map_err(|_| Error::DeserializeError)?;
 
         let x25519_secret_bytes: [u8; 32] = bytes[ML_KEM_768_SECRET_KEY_BYTES_LENGTH
             ..(ML_KEM_768_SECRET_KEY_BYTES_LENGTH + X25519_SECRET_KEY_BYTES_LENGTH)]
             .try_into()
-            .map_err(|_| Error::DeserialiseError)?;
+            .map_err(|_| Error::DeserializeError)?;
 
         let x25519_public_bytes: [u8; 32] = bytes[(ML_KEM_768_SECRET_KEY_BYTES_LENGTH
             + X25519_SECRET_KEY_BYTES_LENGTH)
@@ -403,7 +411,7 @@ impl SecretKey {
                 + X25519_SECRET_KEY_BYTES_LENGTH
                 + X25519_PUBLIC_KEY_BYTES_LENGTH)]
             .try_into()
-            .map_err(|_| Error::DeserialiseError)?;
+            .map_err(|_| Error::DeserializeError)?;
 
         Ok(SecretKey {
             ml_kem_secret,
@@ -432,13 +440,13 @@ impl PublicKey {
     pub fn from_bytes(bytes: XWingPublicKey) -> Result<Self, Error> {
         let ml_kem_public = bytes[0..ML_KEM_768_PUBLIC_KEY_BYTES_LENGTH]
             .try_into()
-            .map_err(|_| Error::DeserialiseError)?;
+            .map_err(|_| Error::DeserializeError)?;
 
         let x25519_public: [u8; X25519_PUBLIC_KEY_BYTES_LENGTH] = bytes
             [ML_KEM_768_PUBLIC_KEY_BYTES_LENGTH
                 ..(ML_KEM_768_PUBLIC_KEY_BYTES_LENGTH + X25519_PUBLIC_KEY_BYTES_LENGTH)]
             .try_into()
-            .map_err(|_| Error::DeserialiseError)?;
+            .map_err(|_| Error::DeserializeError)?;
 
         Ok(PublicKey {
             ml_kem_public,
@@ -461,12 +469,12 @@ impl Ciphertext {
     pub fn from_bytes(bytes: XWingCiphertext) -> Result<Self, Error> {
         let ml_kem_cipher = bytes[0..ML_KEM_768_CIPHERTEXT_BYTES_LENGTH]
             .try_into()
-            .map_err(|_| Error::DeserialiseError)?;
+            .map_err(|_| Error::DeserializeError)?;
         let x25519_cipher: [u8; X25519_PUBLIC_KEY_BYTES_LENGTH] = bytes
             [ML_KEM_768_CIPHERTEXT_BYTES_LENGTH
                 ..(ML_KEM_768_CIPHERTEXT_BYTES_LENGTH + X25519_CIPHERTEXT_BYTES_LENGTH)]
             .try_into()
-            .map_err(|_| Error::DeserialiseError)?;
+            .map_err(|_| Error::DeserializeError)?;
 
         Ok(Ciphertext {
             ml_kem_cipher,

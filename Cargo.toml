@@ -8,7 +8,6 @@ description = "An implementation of X-Wing written for fun purposes. Do not use 
 repository = "https://github.com/hackerbirds/x-wing-rust"
 
 [dependencies]
-thiserror = "1.0"
 ml-kem = { version = "0.1.0", features = ["deterministic"] }
 sha3 = "0.10.8"
 x25519-dalek = { version = "2", features = ["static_secrets", "zeroize"] }
