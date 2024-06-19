@@ -90,9 +90,10 @@
 #![allow(dead_code)]
 #![forbid(unsafe_code)]
 
+use kem::{Decapsulate, Encapsulate};
 use ml_kem::{
     kem::{DecapsulationKey, EncapsulationKey},
-    Decapsulate, Encapsulate, EncodedSizeUser, KemCore, MlKem768, MlKem768Params,
+    EncodedSizeUser, KemCore, MlKem768, MlKem768Params,
 };
 use rand_core::CryptoRngCore;
 #[cfg(feature = "serde")]
