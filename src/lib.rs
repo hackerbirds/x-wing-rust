@@ -227,10 +227,10 @@ impl XWing {
         let mut hasher = Sha3_256::new();
 
         hasher.update(X_WING_LABEL);
-        hasher.update(&ml_kem_shared_secret);
-        hasher.update(&x25519_shared_secret);
-        hasher.update(&x25519_cipher);
-        hasher.update(&x25519_public);
+        hasher.update(ml_kem_shared_secret);
+        hasher.update(x25519_shared_secret);
+        hasher.update(x25519_cipher);
+        hasher.update(x25519_public);
         let shared_secret_hash = hasher.finalize();
 
         SharedSecret(shared_secret_hash.into())
