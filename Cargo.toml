@@ -1,6 +1,6 @@
 [package]
 name = "x-wing"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 license = "GPL-3.0-or-later"
 authors = ["hackerbirds"]
@@ -18,14 +18,14 @@ zeroize = { version = "1.7", features = ["alloc"], optional = true }
 rand_core = "0.6.4"
 
 [features]
-default = ["zeroize"]
+default = ["zeroize", "serialize_shared_secret"]
 # Serialise public keys and ciphertexts.
 serde = ["dep:serde", "dep:serde_arrays", "x25519-dalek/serde"]
 # Zeroize public keys and secrets from memory after using them
 zeroize = ["dep:zeroize"]
 
 serialize_secret_key = []
-serialize_shared_key = []
+serialize_shared_secret = []
 
 [dev-dependencies]
 ml-kem = { version = "0.1.1", features = ["deterministic"] }

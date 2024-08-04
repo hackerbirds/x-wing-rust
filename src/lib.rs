@@ -496,10 +496,11 @@ impl Ciphertext {
 
 #[cfg(any(test, feature = "serialize_shared_secret"))]
 impl SharedSecret {
-    pub fn from_bytes(bytes: XWingSharedSecret) -> Self {
-        SharedSecret(bytes)
-    }
-
+    /// Exports the shared secret into a byte array.
+    /// 
+    /// WARNING: Doing this prevents zeroizing the shared
+    /// secret and allows for accidental clones. Be careful
+    /// when dealing with secret values. 
     pub fn to_bytes(&self) -> XWingSharedSecret {
         self.0
     }
@@ -867,7 +868,7 @@ mod tests {
         );
 
         // Roundtrip
-        let other_shared_secret = SharedSecret::from_bytes(shared_secret.to_bytes());
+        let other_shared_secret = SharedSecret(shared_secret.to_bytes());
         assert_eq!(shared_secret.0, other_shared_secret.0);
     }
 
