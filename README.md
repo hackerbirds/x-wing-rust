@@ -1,76 +1,79 @@
 # A POC implementation of the "X-Wing" Hybrid KEM in Rust
 
-X-Wing is a Hybrid KEM combining X25519 and ML-KEM-768 (formerly known as Kyber-768). It is designed such that if either X25519 or ML-KEM-768 is secure, then X-Wing is also secure.
+X-Wing is a post-quantum secure Hybrid KEM combining X25519 and ML-KEM-768 (formerly known as Kyber-768). It is designed such that if SHA-3 and either X25519 or ML-KEM-768 is secure, then X-Wing is also secure.
 
-The X25519 implementation we're using is the `x25519_dalek` and the ML-KEM implementation we're using is the `ml-kem` crate.
-
-X-Wing is currently under an RFC draft at https://www.ietf.org/archive/id/draft-connolly-cfrg-xwing-kem-00.html.
-The X-Wing paper which includes the IND-CCA security proof is at https://eprint.iacr.org/2024/039.pdf. 
-
-*Please do note that X-Wing is designed with ML-KEM-768/X25519 specifically, and that changing these primitives to something else could break the security of X-Wing.*
-
-## Security
-
-The safety of the implementation of this crate mainly depends: 
-
- - The implementation of the `ml-kem` and `x25519-dalek`, and their constant-time operations, which we don't control. 
- - The randomness of the cryptographic RNG used (typically `OsRng`, which is up to the operating system).
-
-Beyond that, we try to make sure that all secret values cannot be handled in an unsafe way, and by default are zeroized from memory after being used/dropped. 
+X-Wing is currently under an RFC draft at <https://datatracker.ietf.org/doc/draft-connolly-cfrg-xwing-kem/>.
+You may read more about X-Wing in this paper, which includes the security proofs <https://eprint.iacr.org/2024/039.pdf>.
 
 ## This library is not production ready
 
-This library did not receive any audits, and the `ml-kem` crate we're using is not yet stable, and you should not use this in any production setting. 
+- This library (and `ml-kem`) did not receive any audits.
+- X-Wing is not yet finalized and things may still change.
+- This library was written by an idiot.
 
-...and we are absolutely not professionals. We wrote this for fun and learning, although this library may serve as a reference point to someone else trying to build a more serious library. Having said that, feel free to give us feedback.
+## Security
+
+The security of the implementation of this crate depends:
+ - The implementation of, `ml-kem`, `sha3`, and `x25519-dalek`.
+ - The randomness of the cryptographic RNG used (typically `OsRng`, which is up to the operating system).
+
+Beyond that, we have a best-effort attempt to prevent misuse of secret values through enforcements in the type system. By default, all secret values are zeroized after being used.
 
 # Recommended usage
 
 The recommended usage is with `XWingDecapsulator` and `XWingEncapsulator`.
-
 `XWingDecapsulator` is the party that generates the KEM secret and handles decapsulation while `XWingEncapsulator` generates the shared secret and handles the encapsulation using `XWingDecapsulator`'s public key.
 
-These structs make it difficult to Fuck Up™ because this library will do a best-effort attempt at preventing you from leaking the secret, and will safely zeroize everything after completing encapsulating and decapsulating.
+## Example
 
 ```rust
 use x_wing::{XWingEncapsulator, XWingDecapsulator};
 use rand::rngs::OsRng;
 
 let csprng = OsRng;
-let (server, server_public_key) = XWingDecapsulator::new(csprng)?;
-let encapsulator = XWingEncapsulator::new(server_public_key, csprng);
 
-let (encapsulator_shared_secret, encapsulator_cipher) = encapsulator.encapsulate()?;
-let server_shared_secret = server.decapsulate(encapsulator_cipher)?;
+let (decapsulator, decapsulator_public_key) = XWingDecapsulator::new(csprng);
+let encapsulator = XWingEncapsulator::new(decapsulator_public_key, csprng);
 
-// encapsulator_shared_secret == server_shared_secret
+let (encapsulator_shared_secret, encapsulator_cipher) = encapsulator.encapsulate();
+let decapsulator_shared_secret = decapsulator.decapsulate(encapsulator_cipher);
+
+assert_eq!(shared_secret_alice.to_slice(), shared_secret_bob.to_slice())
 ```
 
-### More general (but riskier) API 
+---
 
-If you don't want to use `XWingDecapsulator`/`XWingEncapsulator`, you may use `XWing` directly, and feed it the necessary secrets yourself:
+# More flexible (but risky) API
+
+If you don't want to use [`XWingDecapsulator`]/[`XWingEncapsulator`], you may use [`XWing`] instead, and feed it the necessary secrets yourself.
+
+Because you are handling secret values directly, you must handle them with extra care. This API is therefore gated behind the `risky-api` feature, and you must enable it to use [`XWing`]
 
 ```rust
 use x_wing::XWing;
 use rand::rngs::OsRng;
 
-// In this example, Alice is the "encapsulator" and Bob is the "server". 
 let csprng = OsRng;
-let (secret_key_bob, pub_key_bob) = XWing::derive_key_pair(csprng)?;
 
-let (shared_secret_alice, cipher_alice) = XWing::encapsulate(csprng, pub_key_bob)?;
-let shared_secret_bob = XWing::decapsulate(cipher_alice, secret_key_bob)?;
+// In this example, Alice is the "encapsulator" and Bob is the "decapsulator".
+let (secret_key_bob, pub_key_bob) = XWing::derive_key_pair(csprng);
+let (shared_secret_alice, cipher_alice) = XWing::encapsulate(csprng, pub_key_bob);
+let shared_secret_bob = XWing::decapsulate(cipher_alice, secret_key_bob);
 
-// shared_secret_alice == shared_secret_bob
+assert_eq!(shared_secret_alice.to_slice(), shared_secret_bob.to_slice())
 ```
 
-# Serializing/exporting secret values
+# Serializing/exporting the secret key
 
-If you must read/export the secret key and shared secrets, for instance in order to reuse them, you can use the `serialize_secret_key` and `serialize_shared_key` to serialize/deserialize SecretKey and SharedSecret into bytes. After that you are on your own, and you must make sure to handle those properly.
+If you must read/export the secret key, for instance in order to clone/reuse it, you can use the `serialize_secret_key` feature to serialize/deserialize `SecretKey` into bytes.
+
+`SharedSecret` may be accessed with no feature flag.
 
 # Install
 
-Use `cargo`:
+Before installing, make sure you have read the "This library is not production ready" section, and understand that you should not use this code in production. However, if you just want to test out X-Wing or experiment with it, feel free to use this library.
+
+To install this library, use `cargo`:
 
 ```
 cargo add --git https://github.com/hackerbirds/x-wing-rust
