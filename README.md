@@ -2,10 +2,10 @@
 
 X-Wing is a post-quantum secure Hybrid KEM combining X25519 and ML-KEM-768 (formerly known as Kyber-768). It is designed such that if SHA-3 and either X25519 or ML-KEM-768 is secure, then X-Wing is also secure.
 
-X-Wing is currently under an RFC draft at <https://datatracker.ietf.org/doc/draft-connolly-cfrg-xwing-kem/>.
-You may read more about X-Wing in this paper, which includes the security proofs <https://eprint.iacr.org/2024/039.pdf>.
+X-Wing is currently under an RFC draft at https://datatracker.ietf.org/doc/draft-connolly-cfrg-xwing-kem/.
+You may read more about X-Wing in this paper, which includes the security proofs https://eprint.iacr.org/2024/039.pdf.
 
-## This library is not production ready
+## ⚠️ This library is not production ready
 
 - This library (and `ml-kem`) did not receive any audits.
 - X-Wing is not yet finalized and things may still change.
@@ -14,14 +14,16 @@ You may read more about X-Wing in this paper, which includes the security proofs
 ## Security
 
 The security of the implementation of this crate depends:
- - The implementation of, `ml-kem`, `sha3`, and `x25519-dalek`.
- - The randomness of the cryptographic RNG used (typically `OsRng`, which is up to the operating system).
+
+ - The implementation of `ml-kem`, `sha3`, and `x25519-dalek`.
+ - The randomness of the cryptographic RNG used (typically `OsRng`, which is up to the operating system but safe).
 
 Beyond that, we have a best-effort attempt to prevent misuse of secret values through enforcements in the type system. By default, all secret values are zeroized after being used.
 
 # Recommended usage
 
 The recommended usage is with `XWingDecapsulator` and `XWingEncapsulator`.
+
 `XWingDecapsulator` is the party that generates the KEM secret and handles decapsulation while `XWingEncapsulator` generates the shared secret and handles the encapsulation using `XWingDecapsulator`'s public key.
 
 ## Example
@@ -45,9 +47,9 @@ assert_eq!(shared_secret_alice.to_slice(), shared_secret_bob.to_slice())
 
 # More flexible (but risky) API
 
-If you don't want to use [`XWingDecapsulator`]/[`XWingEncapsulator`], you may use [`XWing`] instead, and feed it the necessary secrets yourself.
+If you don't want to use `XWingDecapsulator`/`XWingEncapsulator`, you may use `XWing` instead, and feed it the necessary secrets yourself.
 
-Because you are handling secret values directly, you must handle them with extra care. This API is therefore gated behind the `risky-api` feature, and you must enable it to use [`XWing`]
+Because you are handling secret values directly, you must handle them with extra care. This API is therefore gated behind the `risky-api` feature, and you must enable it to use `XWing`.
 
 ```rust
 use x_wing::XWing;
