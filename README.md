@@ -59,8 +59,8 @@ let csprng = OsRng;
 
 // In this example, Alice is the "encapsulator" and Bob is the "decapsulator".
 let (secret_key_bob, pub_key_bob) = XWing::derive_key_pair(csprng);
-let (shared_secret_alice, cipher_alice) = XWing::encapsulate(csprng, pub_key_bob);
-let shared_secret_bob = XWing::decapsulate(cipher_alice, secret_key_bob);
+let (shared_secret_alice, cipher_alice) = XWing::encapsulate(csprng, &pub_key_bob);
+let shared_secret_bob = XWing::decapsulate(cipher_alice, &secret_key_bob);
 
 assert_eq!(shared_secret_alice.to_slice(), shared_secret_bob.to_slice())
 ```
