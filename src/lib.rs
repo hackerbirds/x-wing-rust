@@ -103,43 +103,10 @@ pub struct SharedSecret([u8; XWING_SHARED_SECRET_BYTES_LENGTH]);
 #[cfg(any(test, feature = "risky_api"))]
 pub struct XWing;
 
-#[cfg(any(test, feature = "risky_api"))]
+#[cfg(not(any(test, feature = "risky_api")))]
+struct XWing;
+
 impl XWing {
-    /// Generates a keypair.
-    ///
-    /// It is crucial to provide a cryptographically secure RNG.
-    /// If possible, you may use [`rand::rngs::OsRng`] under the (generally safe) assumption that
-    /// all operating systems provide a cryptographically secure RNG.
-    ///
-    /// # Panics
-    ///
-    /// This function may panic if the RNG used is incapable of generating bytes.
-    /// In practice this should not happen with [`rand::rngs::OsRng`].
-    pub fn generate_key_pair(csprng: impl CryptoRngCore) -> (SecretKey, PublicKey) {
-        XWingInternal::generate_key_pair(csprng)
-    }
-
-    /// Generate and encapsulate a secret value (as the "encapsulator") into a [`Ciphertext`]
-    /// which should be sent to the other person (the "decapsulator").
-    pub fn encapsulate(
-        csprng: impl CryptoRngCore,
-        public_key: &PublicKey,
-    ) -> (SharedSecret, Ciphertext) {
-        XWingInternal::encapsulate(csprng, public_key)
-    }
-
-    /// Decapsulate a [`Ciphertext`] using the KEM's [`SecretKey`] (that the "decapsulator" has)
-    /// to retrieve [`SharedSecret`] sent by the "encapsulator"
-    /// Successful decapuslation will zeroize the secret key and ciphertext.
-    pub fn decapsulate(ciphertext: Ciphertext, secret_key: &SecretKey) -> SharedSecret {
-        XWingInternal::decapsulate(ciphertext, secret_key)
-    }
-}
-
-/// The internal API, used both by [`XWing`] and [`XWingEncapsulator`]/[`XWingDecapsulator`].
-pub(crate) struct XWingInternal;
-
-impl XWingInternal {
     fn expand_decapsulation_key(
         secret_key: &SecretKey,
     ) -> (
@@ -187,7 +154,16 @@ impl XWingInternal {
         SharedSecret(shared_secret_hash.into())
     }
 
-    /// Generate a secret key and public key.
+    /// Generates a keypair.
+    ///
+    /// It is crucial to provide a cryptographically secure RNG.
+    /// If possible, you may use [`rand::rngs::OsRng`] under the (generally safe) assumption that
+    /// all operating systems provide a cryptographically secure RNG.
+    ///
+    /// # Panics
+    ///
+    /// This function may panic if the RNG used is incapable of generating bytes.
+    /// In practice this should not happen with [`rand::rngs::OsRng`].
     pub fn generate_key_pair(mut csprng: impl CryptoRngCore) -> (SecretKey, PublicKey) {
         let mut sk = [0u8; 32];
         csprng.fill_bytes(&mut sk);
@@ -272,6 +248,9 @@ impl XWingInternal {
         Ok((shared_secret, ciphertext))
     }
 
+    /// Decapsulate a [`Ciphertext`] using the KEM's [`SecretKey`] (that the "decapsulator" has)
+    /// to retrieve [`SharedSecret`] sent by the "encapsulator"
+    /// Successful decapuslation will zeroize the secret key and ciphertext.
     pub fn decapsulate(ciphertext: Ciphertext, secret_key: &SecretKey) -> SharedSecret {
         let (ml_kem_secret, _ml_kem_public, x25519_secret, x25519_public) =
             Self::expand_decapsulation_key(secret_key);
@@ -418,7 +397,7 @@ impl XWingDecapsulator {
     /// This function may panic if the RNG used is incapable of generating bytes.
     /// In practice this should not happen with [`rand::rngs::OsRng`].
     pub fn new(csprng: impl CryptoRngCore) -> (Self, PublicKey) {
-        let (secret, public) = XWingInternal::generate_key_pair(csprng);
+        let (secret, public) = XWing::generate_key_pair(csprng);
 
         (Self { secret }, public)
     }
@@ -445,7 +424,7 @@ impl XWingDecapsulator {
     /// ```
     pub fn decapsulate(self, cipher: Ciphertext) -> SharedSecret {
         // NOTE: XWing::encapsulate will use zeroize() on the secret key and ciphertext after it's done
-        XWingInternal::decapsulate(cipher, &self.secret)
+        XWing::decapsulate(cipher, &self.secret)
     }
 }
 
@@ -487,7 +466,7 @@ impl<Rng: CryptoRngCore> XWingEncapsulator<Rng> {
     /// Generate a shared secret, and encapsulate it with the decapsulator's public key.
     /// The [`SharedSecret`] should be kept secret and the [`Ciphertext`] should be sent to the decapsulator.
     pub fn encapsulate(mut self) -> (SharedSecret, Ciphertext) {
-        XWingInternal::encapsulate(&mut self.csprng, &self.decapsulator_public)
+        XWing::encapsulate(&mut self.csprng, &self.decapsulator_public)
     }
 }
 
@@ -530,10 +509,10 @@ mod tests {
     #[test]
     fn internal_encaps_decaps() {
         let csprng = OsRng;
-        let (secret_key_bob, pub_key_bob) = XWingInternal::generate_key_pair(csprng);
+        let (secret_key_bob, pub_key_bob) = XWing::generate_key_pair(csprng);
 
-        let (shared_secret_alice, cipher_alice) = XWingInternal::encapsulate(csprng, &pub_key_bob);
-        let shared_secret_bob = XWingInternal::decapsulate(cipher_alice, &secret_key_bob);
+        let (shared_secret_alice, cipher_alice) = XWing::encapsulate(csprng, &pub_key_bob);
+        let shared_secret_bob = XWing::decapsulate(cipher_alice, &secret_key_bob);
 
         assert_eq!(
             shared_secret_alice.0, shared_secret_bob.0,
@@ -550,7 +529,7 @@ mod tests {
     ) {
         let gen_secret = SecretKey(seed);
         let (_ml_kem_secret, ml_kem_public, _x25519_secret, x25519_public) =
-            XWingInternal::expand_decapsulation_key(&gen_secret);
+            XWing::expand_decapsulation_key(&gen_secret);
 
         let gen_pk = PublicKey {
             ml_kem_public,
@@ -562,7 +541,7 @@ mod tests {
 
         // Test shared secret
         assert_eq!(
-            XWingInternal::decapsulate(
+            XWing::decapsulate(
                 Ciphertext::from_bytes(ct).expect("deserializing ct works"),
                 &SecretKey::from_bytes(sk)
             )
@@ -578,7 +557,7 @@ mod tests {
     ) {
         let public_key = PublicKey::from_bytes(pk).expect("deserializing pk works");
 
-        let (_encaps_sk, encaps_ct) = XWingInternal::encapsulate_deterministic(eseed, &public_key)
+        let (_encaps_sk, encaps_ct) = XWing::encapsulate_deterministic(eseed, &public_key)
             .expect("decapsulation works");
 
         assert_eq!(encaps_ct.to_bytes(), ct);
@@ -630,7 +609,7 @@ mod tests {
     #[test]
     fn deserialise_and_serialize() {
         let csprng = OsRng;
-        let (secret_key, public_key) = XWingInternal::generate_key_pair(csprng);
+        let (secret_key, public_key) = XWing::generate_key_pair(csprng);
 
         // Roundtrip
         let other_public =
@@ -649,7 +628,7 @@ mod tests {
                 ..ML_KEM_768_PUBLIC_KEY_BYTES_LENGTH + X25519_PUBLIC_KEY_BYTES_LENGTH]
         );
 
-        let (shared_secret, cipher) = XWingInternal::encapsulate(csprng, &public_key);
+        let (shared_secret, cipher) = XWing::encapsulate(csprng, &public_key);
 
         // Roundtrip
         let other_cipher =
@@ -686,12 +665,12 @@ mod tests {
     #[test]
     fn length_serialized_values() {
         let csprng = OsRng;
-        let (secret_key, public_key) = XWingInternal::generate_key_pair(csprng);
+        let (secret_key, public_key) = XWing::generate_key_pair(csprng);
 
         assert_eq!(secret_key.to_bytes().len(), XWING_SECRET_KEY_BYTES_LENGTH);
         assert_eq!(public_key.to_bytes().len(), XWING_PUBLIC_KEY_BYTES_LENGTH);
 
-        let (shared_secret, ciphertext) = XWingInternal::encapsulate(csprng, &public_key);
+        let (shared_secret, ciphertext) = XWing::encapsulate(csprng, &public_key);
 
         assert_eq!(
             shared_secret.to_bytes().len(),
