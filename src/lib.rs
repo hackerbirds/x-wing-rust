@@ -14,19 +14,13 @@ use x25519_dalek::{PublicKey as X25519PublicKey, StaticSecret as X25519SecretKey
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 #[derive(Debug)]
-pub enum Error {
-    SerializeError,
-    DeserializeError,
-}
+pub struct DeserializeError;
 
-impl std::error::Error for Error {}
+impl std::error::Error for DeserializeError {}
 
-impl std::fmt::Display for Error {
+impl std::fmt::Display for DeserializeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Error::SerializeError => write!(f, "Serialization error"),
-            Error::DeserializeError => write!(f, "Deserialization error"),
-        }
+        write!(f, "Deserialization error")
     }
 }
 
@@ -216,7 +210,7 @@ impl XWing {
     pub fn encapsulate_deterministic(
         seed: [u8; 64],
         public_key: &PublicKey,
-    ) -> Result<(SharedSecret, Ciphertext), Error> {
+    ) -> (SharedSecret, Ciphertext) {
         use ml_kem::EncapsulateDeterministic;
 
         let deterministic_ek_bytes: [u8; 32] = seed[32..64].try_into().expect("seed is 64 bytes");
@@ -245,7 +239,7 @@ impl XWing {
             x25519_cipher,
         };
 
-        Ok((shared_secret, ciphertext))
+        (shared_secret, ciphertext)
     }
 
     /// Decapsulate a [`Ciphertext`] using the KEM's [`SecretKey`] (that the "decapsulator" has)
@@ -284,18 +278,18 @@ impl SecretKey {
 }
 
 impl PublicKey {
-    pub fn from_bytes(bytes: XWingPublicKey) -> Result<Self, Error> {
+    pub fn from_bytes(bytes: XWingPublicKey) -> Result<Self, DeserializeError> {
         let ml_kem_public = MlKem768PublicKey::from_bytes(
             bytes[0..ML_KEM_768_PUBLIC_KEY_BYTES_LENGTH]
                 .try_into()
-                .map_err(|_| Error::DeserializeError)?,
+                .map_err(|_| DeserializeError)?,
         );
 
         let x25519_public: [u8; X25519_PUBLIC_KEY_BYTES_LENGTH] = bytes
             [ML_KEM_768_PUBLIC_KEY_BYTES_LENGTH
                 ..(ML_KEM_768_PUBLIC_KEY_BYTES_LENGTH + X25519_PUBLIC_KEY_BYTES_LENGTH)]
             .try_into()
-            .map_err(|_| Error::DeserializeError)?;
+            .map_err(|_| DeserializeError)?;
 
         Ok(PublicKey {
             ml_kem_public,
@@ -316,15 +310,15 @@ impl PublicKey {
 }
 
 impl Ciphertext {
-    pub fn from_bytes(bytes: XWingCiphertext) -> Result<Self, Error> {
+    pub fn from_bytes(bytes: XWingCiphertext) -> Result<Self, DeserializeError> {
         let ml_kem_cipher = bytes[0..ML_KEM_768_CIPHERTEXT_BYTES_LENGTH]
             .try_into()
-            .map_err(|_| Error::DeserializeError)?;
+            .map_err(|_| DeserializeError)?;
         let x25519_cipher: [u8; X25519_PUBLIC_KEY_BYTES_LENGTH] = bytes
             [ML_KEM_768_CIPHERTEXT_BYTES_LENGTH
                 ..(ML_KEM_768_CIPHERTEXT_BYTES_LENGTH + X25519_CIPHERTEXT_BYTES_LENGTH)]
             .try_into()
-            .map_err(|_| Error::DeserializeError)?;
+            .map_err(|_| DeserializeError)?;
 
         Ok(Ciphertext {
             ml_kem_cipher,
@@ -557,8 +551,7 @@ mod tests {
     ) {
         let public_key = PublicKey::from_bytes(pk).expect("deserializing pk works");
 
-        let (_encaps_sk, encaps_ct) = XWing::encapsulate_deterministic(eseed, &public_key)
-            .expect("decapsulation works");
+        let (_encaps_sk, encaps_ct) = XWing::encapsulate_deterministic(eseed, &public_key);
 
         assert_eq!(encaps_ct.to_bytes(), ct);
     }
