@@ -1,4 +1,4 @@
-# A POC implementation of the "X-Wing" Hybrid KEM in Rust
+# A Rust library for the "X-Wing" Hybrid KEM 
 
 X-Wing is a post-quantum secure Hybrid KEM combining X25519 and ML-KEM-768 (formerly known as Kyber-768). It is designed such that if SHA-3 and either X25519 or ML-KEM-768 is secure, then X-Wing is also secure.
 
