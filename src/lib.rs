@@ -485,21 +485,6 @@ mod tests {
         );
     }
 
-    #[cfg(feature = "risky_api")]
-    #[test]
-    fn xwing_encaps_decaps() {
-        let csprng = OsRng;
-        let (secret_key_bob, pub_key_bob) = XWing::generate_key_pair(csprng);
-
-        let (shared_secret_alice, cipher_alice) = XWing::encapsulate(csprng, &pub_key_bob);
-        let shared_secret_bob = XWing::decapsulate(cipher_alice, &secret_key_bob);
-
-        assert_eq!(
-            shared_secret_alice.0, shared_secret_bob.0,
-            "shared secret must be equal between encapsulator and decapsulator"
-        );
-    }
-
     #[test]
     fn internal_encaps_decaps() {
         let csprng = OsRng;
