@@ -113,17 +113,18 @@ impl XWing {
         let mut hasher = Shake128::default();
         sha3::digest::Update::update(&mut hasher, &secret_key.0);
         let mut reader = hasher.finalize_xof();
-        let mut expanded = [0u8; 96];
-        reader.read(&mut expanded);
+        let mut deterministic_d = [0u8; 32];
+        let mut deterministic_z = [0u8; 32];
+        let mut x25519_secret = [0u8; 32];
 
-        let deterministic_d: [u8; 32] = expanded[0..32].try_into().expect("expanded is 96 bytes");
-        let deterministic_z: [u8; 32] = expanded[32..64].try_into().expect("expanded is 96 bytes");
-        let x25519_secret_bytes: [u8; 32] =
-            expanded[64..96].try_into().expect("expanded is 96 bytes");
+        // Read the 96 bytes, and output them in separate arrays
+        reader.read(&mut deterministic_d);
+        reader.read(&mut deterministic_z);
+        reader.read(&mut x25519_secret);
 
         let (ml_kem_secret, ml_kem_public) =
             MlKem768::generate_deterministic(&deterministic_d.into(), &deterministic_z.into());
-        let x25519_secret = X25519SecretKey::from(x25519_secret_bytes);
+        let x25519_secret = X25519SecretKey::from(x25519_secret);
         let x25519_public = x25519_dalek::PublicKey::from(&x25519_secret);
 
         (ml_kem_secret, ml_kem_public, x25519_secret, x25519_public)

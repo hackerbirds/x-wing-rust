@@ -15,6 +15,14 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         })
     });
     #[cfg(feature = "risky_api")]
+    group.bench_function("XWing: Encaps+Decaps, no serialization roundtrip", |b| {
+        let (secret_key_bob, pub_key_bob) = XWing::generate_key_pair(csprng);
+        b.iter(|| {
+            let (_shared_key_alice, cipher_alice) = XWing::encapsulate(csprng, &pub_key_bob);
+            let _shared_key_bob = XWing::decapsulate(cipher_alice, &secret_key_bob);
+        })
+    });
+    #[cfg(feature = "risky_api")]
     group.bench_function(
         "XWing: Encaps+Decaps with Ciphertext/Public Key serialization roundtrip",
         |b| {
