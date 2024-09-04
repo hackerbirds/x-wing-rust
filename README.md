@@ -16,7 +16,7 @@ You may read more about X-Wing in this paper, which includes the security proofs
 The security of the implementation of this crate depends:
 
  - The implementation of `ml-kem`, `sha3`, and `x25519-dalek`.
- - The randomness of the cryptographic RNG used (typically `OsRng`, which is up to the operating system but safe).
+ - The randomness of the cryptographically secure PRNG used, which you will need to provide (typically `rand::OsRng`, which is the operating system's and in most cases is safe).
 
 Beyond that, we have a best-effort attempt to prevent misuse of secret values through enforcements in the type system. By default, all secret values are zeroized after being used.
 

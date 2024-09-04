@@ -101,6 +101,10 @@ pub struct XWing;
 struct XWing;
 
 impl XWing {
+    /// Expands a 32-byte seed into X-Wing's secret/public keys
+    /// 
+    /// As defined in "5.2. Key generation"
+    /// https://www.ietf.org/archive/id/draft-connolly-cfrg-xwing-kem-04.html#name-key-generation
     fn expand_decapsulation_key(
         secret_key: &SecretKey,
     ) -> (
@@ -131,6 +135,9 @@ impl XWing {
     }
 
     /// X-Wing's SHA-3 combiner to generate the shared secret from a multitude of values
+    /// 
+    /// As defined in section "5.3. Combiner"
+    /// https://www.ietf.org/archive/id/draft-connolly-cfrg-xwing-kem-04.html#name-combiner
     fn combiner(
         ml_kem_shared_secret: &[u8; ML_KEM_768_SHARED_SECRET_BYTES_LENGTH],
         x25519_shared_secret: &[u8; X25519_SHARED_SECRET_BYTES_LENGTH],
@@ -150,6 +157,9 @@ impl XWing {
     }
 
     /// Generates a keypair.
+    /// 
+    /// As defined in "5.2. Key generation"
+    /// https://www.ietf.org/archive/id/draft-connolly-cfrg-xwing-kem-04.html#name-key-generation
     ///
     /// It is crucial to provide a cryptographically secure RNG.
     /// If possible, you may use [`rand::rngs::OsRng`] under the (generally safe) assumption that
@@ -177,6 +187,9 @@ impl XWing {
 
     /// Generate and encapsulate a secret value (as the "encapsulator") into a [`Ciphertext`]
     /// which should be sent to the other person (the "decapsulator").
+    /// 
+    /// As defined in section "5.4. Encapsulation"
+    /// https://www.ietf.org/archive/id/draft-connolly-cfrg-xwing-kem-04.html#name-encapsulation
     pub fn encapsulate(
         mut csprng: impl CryptoRngCore,
         public_key: &PublicKey,
@@ -207,6 +220,8 @@ impl XWing {
         (shared_secret, ciphertext)
     }
 
+    /// As defined in section "5.4.1. Derandomized"
+    /// https://www.ietf.org/archive/id/draft-connolly-cfrg-xwing-kem-04.html#name-derandomized
     #[cfg(test)]
     pub fn encapsulate_deterministic(
         seed: [u8; 64],
@@ -246,6 +261,9 @@ impl XWing {
     /// Decapsulate a [`Ciphertext`] using the KEM's [`SecretKey`] (that the "decapsulator" has)
     /// to retrieve [`SharedSecret`] sent by the "encapsulator"
     /// Successful decapuslation will zeroize the secret key and ciphertext.
+    /// 
+    /// As defined in section "5.5. Decapsulation"
+    /// https://www.ietf.org/archive/id/draft-connolly-cfrg-xwing-kem-04.html#name-decapsulation
     pub fn decapsulate(ciphertext: Ciphertext, secret_key: &SecretKey) -> SharedSecret {
         let (ml_kem_secret, _ml_kem_public, x25519_secret, x25519_public) =
             Self::expand_decapsulation_key(secret_key);
